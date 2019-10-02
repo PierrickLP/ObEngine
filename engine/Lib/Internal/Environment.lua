@@ -1,13 +1,12 @@
-__ENV_COUNT = 0;
+local __ENV_COUNT = 0; -- Remove local for weird bug
 __ENVIRONMENTS = {};
 
-local inspect = require("Lib/StdLib/Inspect");
-
-function CreateNewEnv(env)
+function LuaCore.CreateNewEnv(env)
     local ENV = env or {};
     if env == nil then
         ENV["__ENV_ID"] = __ENV_COUNT;
         ENV["__ENV_ENABLED"] = true;
+        ENV["__TRIGGERS"] = {};
         setmetatable(ENV, {__index=_G});
         __ENVIRONMENTS[__ENV_COUNT] = ENV;
         __ENV_COUNT = __ENV_COUNT + 1;
@@ -15,25 +14,23 @@ function CreateNewEnv(env)
     return __ENV_COUNT - 1;
 end
 
-function ExecuteFileOnEnv(file, envIndex)
-    --print("Call file : ", file, "with index", envIndex);
-    --print(inspect(__ENVIRONMENTS[envIndex]));
+function LuaCore.ExecuteFileOnEnv(file, envIndex)
     assert(loadfile(file, "t", __ENVIRONMENTS[envIndex]))();
     --print("CALL RESULT : ", f, err);
     --print("Call file : ", file, " is over");
 end
 
-function ExecuteStringOnEnv(code, envIndex)
+function LuaCore.ExecuteStringOnEnv(code, envIndex)
     assert(load(code, nil, "t", __ENVIRONMENTS[envIndex]))();
 end
 
-function EnvFuncInjector(env, triggerName)
+function LuaCore.EnvFuncInjector(env, triggerName)
     _ENV = __ENVIRONMENTS[env];
-    local func = _ENV["LuaCore"]["TriggerList"][triggerName].callback;
+    local func = _ENV["__TRIGGERS"][triggerName].callback;
     if type(func) == "string" then
-        _ENV["LuaCore"]["TriggerList"][triggerName].callback = assert(load("return " .. func, nil, "t", _ENV))();
-        func = _ENV["LuaCore"]["TriggerList"][triggerName].callback;
+        _ENV["__TRIGGERS"][triggerName].callback = assert(load("return " .. func, nil, "t", _ENV))();
+        func = _ENV["__TRIGGERS"][triggerName].callback;
     end
-    _ENV["LuaCore"].FuncInjector(func, triggerName);
+    LuaCore.FuncInjector(_ENV, func, triggerName);
     _ENV = _G;
 end

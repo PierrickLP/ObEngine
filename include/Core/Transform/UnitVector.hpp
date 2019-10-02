@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple>
+
 #include <Transform/Units.hpp>
 #include <Transform/UnitStructures.hpp>
 
@@ -70,9 +72,9 @@ namespace obe::Transform
         */
         void set(double x, double y);
         /**
-		* \brief Adds the values of the the given UnitVector but keeps base Unit
+        * \brief Adds the values of the the given UnitVector but keeps base Unit
         * \param vec UnitVector containing the values to add
-		*/
+        */
         void add(const UnitVector& vec);
         /**
         * \brief Add the new given values but keeps base Unit
@@ -214,12 +216,19 @@ namespace obe::Transform
         UnitVector to(Units pUnit) const;
 
         /**
+         * \brief Unpacks the UnitVector to a tuple (can be used with structured bindings)
+         * \return A tuple containing two doubles (x and y)
+         */
+        std::tuple<double, double> unpack() const;
+
+        /**
         * \brief Display an UnitVector for debug purposes
         * \param os The stream you want to print the UnitVector in
         * \param m The UnitVector you want to print
         * \return The stream passed by reference (To chain calls)
         */
         friend std::ostream& operator<<(std::ostream& os, const UnitVector& m);
+        UnitVector rotate(double angle, UnitVector zero = UnitVector(0, 0)) const;
     };
 
     template <>

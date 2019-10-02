@@ -1,5 +1,7 @@
 #include <algorithm>
 
+#include <SFML/Window/Keyboard.hpp>
+
 #include <Debug/Logger.hpp>
 #include <Input/InputButtonMonitor.hpp>
 #include <Input/KeyList.hpp>
@@ -8,23 +10,52 @@
 namespace obe::Input
 {
     Triggers::TriggerGroupPtr InputButtonMonitor::KeyTriggers;
+    std::vector<std::shared_ptr<InputButtonMonitor>> InputButtonMonitor::TriggerMonitors;
     void InputButtonMonitor::InitKeyTriggerGroup()
     {
         InputButtonMonitor::KeyTriggers = Triggers::TriggerGroupPtr(
             Triggers::TriggerDatabase::GetInstance()->createTriggerGroup("Global", "Keys"), 
             Triggers::TriggerGroupPtrRemover
         );
+        for (auto const& [key, val] : AllKeys)
+        {
+            Input::InputButton* button = val.get();
+            InputButtonMonitor::KeyTriggers->addTrigger(button->getName());
+            InputButtonMonitor::KeyTriggers->getTrigger(button->getName())
+                ->onRegister([button](const Triggers::TriggerEnv& env) {
+                    for (auto& monitor : InputButtonMonitor::TriggerMonitors)
+                    {
+                        if (monitor->getButton() == button)
+                            return;
+                    }
+                    InputButtonMonitor::TriggerMonitors.push_back(
+                        Monitors::Monitor(button)
+                    );
+                });
+            InputButtonMonitor::KeyTriggers->getTrigger(button->getName())
+                ->onUnregister([button](const Triggers::TriggerEnv& env) {
+                    InputButtonMonitor::TriggerMonitors.erase(
+                        std::remove_if(
+                            InputButtonMonitor::TriggerMonitors.begin(), 
+                            InputButtonMonitor::TriggerMonitors.end(), 
+                            [button](const auto& monitor) {
+                                return monitor->getButton() == button;
+                            }), 
+                        InputButtonMonitor::TriggerMonitors.end()
+                    );
+                });
+        }
     }
 
     InputButtonMonitor::InputButtonMonitor(InputButton* button)
     {
+        Debug::Log->trace("Started monitoring InputButton {}", button->getName());
         m_button = button;
-        InputButtonMonitor::KeyTriggers->addTrigger(m_button->getName());
     }
 
     InputButtonMonitor::~InputButtonMonitor()
     {
-        InputButtonMonitor::KeyTriggers->removeTrigger(m_button->getName());
+        Debug::Log->trace("Un-monitoring InputButton {}", m_button->getName());
     }
 
     InputButton* InputButtonMonitor::getButton() const
@@ -82,11 +113,11 @@ namespace obe::Input
             if (auto monitor = element.lock())
             {
                 monitor->update();
-                return true;
+                return false;
             }
             else
             {
-                return false;
+                return true;
             }
         }
 
@@ -99,9 +130,10 @@ namespace obe::Input
         {
             for (auto& monitor : Monitors)
             {
-                if (const auto sharedMonitor = monitor.lock(); sharedMonitor->getButton() == button)
+                if (const auto sharedMonitor = monitor.lock())
                 {
-                    return InputButtonMonitorPtr(sharedMonitor);
+                    if (sharedMonitor->getButton() == button)
+                        return InputButtonMonitorPtr(sharedMonitor);
                 }
             }
             InputButtonMonitorPtr monitor = std::make_shared<InputButtonMonitor>(button);

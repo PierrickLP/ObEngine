@@ -14,9 +14,6 @@
 
 namespace obe::Script
 {
-    KAGUYA_MEMBER_FUNCTION_OVERLOADS_WITH_SIGNATURE(useExternalTriggerProxy, GameObject, useExternalTrigger, 3, 4,
-        void(GameObject::*)(std::string, std::string, std::string, std::string));
-
     /*kaguya::LuaTable GameObject::access(kaguya::State* lua) const
     {
         return (*m_objectScript)["Object"];
@@ -44,7 +41,7 @@ namespace obe::Script
         if (!allRequires.root().contains(type))
         {
             vili::ViliParser getGameObjectFile;
-            System::Path("Data/GameObjects/").add(type).add(type + ".obj.vili").loadResource(&getGameObjectFile, System::Loaders::dataLoader);
+            System::Path("Data/GameObjects/").add(type).add(type + ".obj.vili").load(System::Loaders::dataLoader, getGameObjectFile);
             if (getGameObjectFile->contains("Requires"))
             {
                 vili::ComplexNode& requiresData = getGameObjectFile.at<vili::ComplexNode>("Requires");
@@ -63,7 +60,7 @@ namespace obe::Script
         if (!allDefinitions.root().contains(type))
         {
             vili::ViliParser getGameObjectFile;
-            System::Path("Data/GameObjects/").add(type).add(type + ".obj.vili").loadResource(&getGameObjectFile, System::Loaders::dataLoader);
+            System::Path("Data/GameObjects/").add(type).add(type + ".obj.vili").load(System::Loaders::dataLoader, getGameObjectFile);
             if (getGameObjectFile->contains(type))
             {
                 vili::ComplexNode& definitionData = getGameObjectFile.at<vili::ComplexNode>(type);
@@ -97,10 +94,10 @@ namespace obe::Script
 
     void GameObject::initialize()
     {
-        if (!m_initialised)
+        if (!m_active)
         {
             Debug::Log->debug("<GameObject> Initialising GameObject '{0}' ({1}) [Env={2}]", m_id, m_type, m_envIndex);
-            m_initialised = true;
+            m_active = true;
             GAMEOBJECTENV["__OBJECT_INIT"] = true;
             m_localTriggers->trigger("Init");
         }
@@ -111,6 +108,14 @@ namespace obe::Script
     GameObject::~GameObject()
     {
         Debug::Log->debug("<GameObject> Deleting GameObject '{0}' ({1})", m_id, m_type);
+        AllEnvs.erase(
+            std::remove_if(
+                AllEnvs.begin(),
+                AllEnvs.end(),
+                [this](const unsigned int& envIndex) { return envIndex == m_envIndex; }
+            ),
+            AllEnvs.end()
+        );
         if (m_hasScriptEngine)
         {
             m_localTriggers.reset();
@@ -144,12 +149,9 @@ namespace obe::Script
             Triggers::TriggerDatabase::GetInstance()->createNamespace(m_privateKey);
             m_localTriggers.reset(Triggers::TriggerDatabase::GetInstance()->createTriggerGroup(m_privateKey, "Local"), Triggers::TriggerGroupPtrRemover);
 
-            m_envIndex = ScriptEngine["CreateNewEnv"]();
+            m_envIndex = CreateNewEnvironment();
+            Debug::Log->trace("<GameObject> GameObject '{}' received Environment ID {}", m_id, m_envIndex);
             AllEnvs.push_back(m_envIndex);
-            //std::cout << "Environment Index is : " << m_envIndex << std::endl;
-
-            //executeFile(m_envIndex, System::Path("Lib/Internal/ScriptInit.lua").find());
-            //loadScrGameObject(this, m_objectScript.get());
 
             GAMEOBJECTENV["This"] = this;
 
@@ -224,7 +226,7 @@ namespace obe::Script
     {
         if (m_canUpdate)
         {
-            if (m_initialised)
+            if (m_active)
             {
                 if (m_hasAnimator)
                 {
@@ -285,7 +287,7 @@ namespace obe::Script
         throw aube::ErrorHandler::Raise("ObEngine.Script.GameObject.NoLevelSprite", {{"id", m_id}});
     }
 
-    Transform::SceneNode* GameObject::getSceneNode()
+    Scene::SceneNode* GameObject::getSceneNode()
     {
         return &m_objectNode;
     }
@@ -304,25 +306,14 @@ namespace obe::Script
         throw aube::ErrorHandler::Raise("ObEngine.Script.GameObject.NoAnimator", {{"id", m_id}});
     }
 
-    Triggers::TriggerGroup* GameObject::getLocalTriggers() const
-    {
-        return m_localTriggers.operator->();
-    }
-
-    void GameObject::useLocalTrigger(const std::string& trName)
-    {
-        this->registerTrigger(Triggers::TriggerDatabase::GetInstance()->getTrigger(m_privateKey, "Local", trName), "Local." + trName);
-        Triggers::TriggerDatabase::GetInstance()->getTrigger(m_privateKey, "Local", trName)->registerEnvironment(m_envIndex, "Local." + trName);
-    }
-
-    void GameObject::useExternalTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName, const std::string& callAlias)
+    void GameObject::useTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName, const std::string& callAlias)
     {
         if (trName == "*")
         {
             std::vector<std::string> allTrg = Triggers::TriggerDatabase::GetInstance()->getAllTriggersNameFromTriggerGroup(trNsp, trGrp);
             for (int i = 0; i < allTrg.size(); i++)
             {
-                this->useExternalTrigger(trNsp, trGrp, trName, 
+                this->useTrigger(trNsp, trGrp, trName, 
                     (Utils::String::occurencesInString(callAlias, "*")) ? 
                     Utils::String::replace(callAlias, "*", allTrg[i]) : 
                     "");
@@ -342,25 +333,25 @@ namespace obe::Script
             {
                 const std::string callbackName = (callAlias.empty()) ? trNsp + "." + trGrp + "." + trName : callAlias;
                 this->registerTrigger(Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName), callbackName);
-                Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->registerEnvironment(m_envIndex, callbackName);
+                Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->registerEnvironment(m_envIndex, callbackName, &m_active);
             }
             else
             {
                 const std::string callbackName = (callAlias.empty()) ? trNsp + "." + trGrp + "." + trName : callAlias;
                 Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->unregisterEnvironment(m_envIndex);
-                Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->registerEnvironment(m_envIndex, callbackName);
+                Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->registerEnvironment(m_envIndex, callbackName, &m_active);
             }
         }
     }
 
-    void GameObject::removeExternalTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName) const
+    void GameObject::removeTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName) const
     {
         Triggers::TriggerDatabase::GetInstance()->getTrigger(trNsp, trGrp, trName)->unregisterEnvironment(m_envIndex);
     }
 
     void GameObject::exec(const std::string& query) const
     {
-        ScriptEngine["ExecuteStringOnEnv"](query, m_envIndex);
+        executeString(m_envIndex, query);
     }
 
     void GameObject::deleteObject()
@@ -368,18 +359,12 @@ namespace obe::Script
         Debug::Log->debug("GameObject::deleteObject called for '{0}' ({1})", m_id, m_type);
         m_localTriggers->trigger("Delete");
         this->deletable = true;
+        m_active = false;
+        GAMEOBJECTENV["__ENV_ENABLED"] = false;
         for (auto& trigger : m_registeredTriggers)
         {
             trigger.first->unregisterEnvironment(m_envIndex);
         }
-        AllEnvs.erase(
-            std::remove_if(
-                AllEnvs.begin(), 
-                AllEnvs.end(), 
-                [this](const unsigned int& envIndex) { return envIndex == m_envIndex; }
-            ), 
-            AllEnvs.end()
-        );
         //GAMEOBJECTENV = nullptr;
     }
 

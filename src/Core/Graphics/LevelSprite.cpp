@@ -9,15 +9,15 @@
 
 namespace obe::Graphics
 {
-    LevelSprite::LevelSprite(const std::string& id) : Selectable(false), Rect(Transform::MovableType::LevelSprite), Component(id)
+    LevelSprite::LevelSprite(const std::string& id) : Selectable(false), Component(id)
     {
 
         m_texture = &ResourceManager::NullTexture;
         m_sprite.setTexture(*m_texture);
-        for (int i = 0; i < 9; i++)
+        
+        for (Transform::Referential& ref : Transform::Referential::Referentials)
         {
-            Transform::Referencial refIndex = static_cast<Transform::Referencial>(i);
-            m_handlePoints.emplace_back(this, refIndex);
+            m_handlePoints.emplace_back(this, ref);
         }
         m_handlePoints.emplace_back(this);
     }
@@ -36,10 +36,10 @@ namespace obe::Graphics
             return sf::Vertex(sf::Vector2f(uv.x, uv.y));
         };
         std::array<sf::Vertex, 4> vertices;
-        vertices[0] = toVertex(Rect::getPosition(Transform::Referencial::TopLeft).to<Transform::Units::ScenePixels>() - camera);
-        vertices[1] = toVertex(Rect::getPosition(Transform::Referencial::BottomLeft).to<Transform::Units::ScenePixels>() - camera);
-        vertices[2] = toVertex(Rect::getPosition(Transform::Referencial::TopRight).to<Transform::Units::ScenePixels>() - camera);
-        vertices[3] = toVertex(Rect::getPosition(Transform::Referencial::BottomRight).to<Transform::Units::ScenePixels>() - camera);
+        vertices[0] = toVertex(Rect::getPosition(Transform::Referential::TopLeft).to<Transform::Units::ScenePixels>() - camera);
+        vertices[1] = toVertex(Rect::getPosition(Transform::Referential::BottomLeft).to<Transform::Units::ScenePixels>() - camera);
+        vertices[2] = toVertex(Rect::getPosition(Transform::Referential::TopRight).to<Transform::Units::ScenePixels>() - camera);
+        vertices[3] = toVertex(Rect::getPosition(Transform::Referential::BottomRight).to<Transform::Units::ScenePixels>() - camera);
 
         m_sprite.setVertices(vertices);
 
@@ -83,6 +83,11 @@ namespace obe::Graphics
         m_sprite.setTextureRect(sf::IntRect(0, 0, texture.getSize().x, texture.getSize().y));
     }
 
+    void LevelSprite::setTextureRect(unsigned int x, unsigned int y, unsigned int width, unsigned int height)
+    {
+        m_sprite.setTextureRect(sf::IntRect(x, y, width, height));
+    }
+
     const sf::Texture& LevelSprite::getTexture() const
     {
         return *m_texture;
@@ -102,12 +107,12 @@ namespace obe::Graphics
 
     void LevelSprite::setRotation(double rotate)
     {
-        Rect::setRotation(rotate, this->getPosition(Transform::Referencial::Center));
+        Rect::setRotation(rotate, this->getPosition(Transform::Referential::Center));
     }
 
     void LevelSprite::rotate(double addRotate)
     {
-        Rect::rotate(addRotate, this->getPosition(Transform::Referencial::Center));
+        Rect::rotate(addRotate, this->getPosition(Transform::Referential::Center));
     }
 
     void LevelSprite::setScalingOrigin(int x, int y)
@@ -126,25 +131,26 @@ namespace obe::Graphics
         const Transform::UnitVector pixelCamera = cameraPosition.to<Transform::Units::ScenePixels>();
         Transform::UnitVector targetPos = Transform::UnitVector(posX, posY, Transform::Units::ScenePixels);
         targetPos = m_positionTransformer(targetPos, -pixelCamera, m_layer);
-        for (int i = 0; i < 9; i++)
+        unsigned int i = 0;
+        for (Transform::Referential& ref : Transform::Referential::Referentials)
         {
-            const Transform::Referencial refIndex = static_cast<Transform::Referencial>(i);
-            const Transform::UnitVector refPoint = Rect::getPosition(refIndex).to<Transform::Units::ScenePixels>();
+            const Transform::UnitVector refPoint = Rect::getPosition(ref).to<Transform::Units::ScenePixels>();
             int lowerXBound = std::min(refPoint.x - LevelSpriteHandlePoint::radius, refPoint.x + LevelSpriteHandlePoint::radius);
             int upperXBound = std::max(refPoint.x - LevelSpriteHandlePoint::radius, refPoint.x + LevelSpriteHandlePoint::radius);
-            if (obe::Utils::Math::isBetween(targetPos.x, lowerXBound, upperXBound) && refIndex != Transform::Referencial::Center)
+            if (obe::Utils::Math::isBetween(targetPos.x, lowerXBound, upperXBound) && ref != Transform::Referential::Center)
             {
                 int lowerYBound = std::min(refPoint.y - LevelSpriteHandlePoint::radius, refPoint.y + LevelSpriteHandlePoint::radius);
                 int upperYBound = std::max(refPoint.y - LevelSpriteHandlePoint::radius, refPoint.y + LevelSpriteHandlePoint::radius);
                 if (obe::Utils::Math::isBetween(targetPos.y, lowerYBound, upperYBound))
                     return &m_handlePoints[i];
             }
+            i++;
         }
 
         const double radAngle = obe::Utils::Math::convertToRadian(-m_angle);
         const double cosAngle = std::cos(radAngle);
         const double sinAngle = std::sin(radAngle);
-        const Transform::UnitVector topPos = this->getPosition(Transform::Referencial::Top).to<Transform::Units::ScenePixels>();
+        const Transform::UnitVector topPos = this->getPosition(Transform::Referential::Top).to<Transform::Units::ScenePixels>();
         Transform::UnitVector rotHandle = topPos;
         Transform::UnitVector result;
         const double dy = m_size.y / 4;
@@ -266,10 +272,10 @@ namespace obe::Graphics
     }
 
     unsigned int LevelSpriteHandlePoint::radius = 6;
-    LevelSpriteHandlePoint::LevelSpriteHandlePoint(LevelSprite* parent, Transform::Referencial ref)
+    LevelSpriteHandlePoint::LevelSpriteHandlePoint(LevelSprite* parent, Transform::Referential ref)
+    : m_referential(ref)
     {
         m_sprite = parent;
-        m_referencial = ref;
         m_type = LevelSpriteHandlePointType::ScaleHandle;
     }
 
@@ -281,44 +287,47 @@ namespace obe::Graphics
 
     void LevelSpriteHandlePoint::moveTo(const Transform::UnitVector& position, const Transform::UnitVector& camera)
     {
+        m_dp = m_sprite->getPositionTransformer()(position, -camera, m_sprite->getLayer());
         if (m_type == LevelSpriteHandlePointType::ScaleHandle)
         {
-            //std::cout << "Was at : " << m_rect->getPosition(m_referencial).to<Transform::Units::ScenePixels>() << std::endl;
+            //std::cout << "Was at : " << m_rect->getPosition(m_referential).to<Transform::Units::ScenePixels>() << std::endl;
             //std::cout << "Set : " << x << ", " << y << std::endl;
-            m_dp = m_sprite->getPositionTransformer()(position, -camera, m_sprite->getLayer());
-            const Transform::UnitVector pos = m_sprite->getPosition(m_referencial).to<Transform::Units::ScenePixels>();
-            const Transform::UnitVector oppositePos = m_sprite->getPosition(Transform::reverseReferencial(m_referencial)).to<Transform::Units::ScenePixels>();
+            const Transform::UnitVector pos = m_sprite->getPosition(m_referential).to<Transform::Units::ScenePixels>();
+            const Transform::UnitVector oppositePos = m_sprite->getPosition(m_referential.flip()).to<Transform::Units::ScenePixels>();
 
-            if (Transform::isOnCorner(m_referencial))
+            if (m_referential.isOnCorner())
             {
-                const Transform::UnitVector baseDist = oppositePos - m_dp;
-                Transform::UnitVector scaleVector = baseDist / m_sprite->getSize().to<Transform::Units::ScenePixels>();
-                scaleVector.set((isOnRightSide(m_referencial)) ? -scaleVector.x : scaleVector.x, (isOnBottomSide(m_referencial)) ? -scaleVector.y : scaleVector.y);
+                const Transform::UnitVector centerSpritePos = m_sprite->getPosition(Transform::Referential::Center);
+                const double spriteAngle = m_sprite->getRotation();
+                const Transform::UnitVector oppositePosInRef = oppositePos.rotate(spriteAngle, centerSpritePos);
+                const Transform::UnitVector posInRef = pos.rotate(spriteAngle, centerSpritePos);
+                const Transform::UnitVector cursorInRef = m_dp.rotate(spriteAngle, centerSpritePos);
+                Transform::UnitVector scaleVector = (cursorInRef - oppositePosInRef) / (posInRef - oppositePosInRef);
                 const double vScale = std::max(scaleVector.x, scaleVector.y);
-                if (baseDist.x != 0 && baseDist.y != 0)
-                    m_sprite->scale(Transform::UnitVector(vScale, vScale, m_sprite->getSize().unit), Transform::reverseReferencial(m_referencial));
+                Debug::Log->debug("{} / {} = {}", (cursorInRef - oppositePosInRef), (posInRef - oppositePosInRef), scaleVector);
+                if ((cursorInRef - oppositePosInRef).x != 0 && (cursorInRef - oppositePosInRef).y != 0)
+                    m_sprite->scale(
+                        Transform::UnitVector(vScale, vScale, m_sprite->getSize().unit), 
+                        m_referential.flip()
+                    );
             }
             else
             {
-                const float e1_x = oppositePos.x - pos.x;
-                const float e1_y = oppositePos.y - pos.y;
-                const float e2_x = m_dp.x - pos.x;
-                const float e2_y = m_dp.y - pos.y;
+                const Transform::UnitVector e1 = oppositePos - pos;
+                const Transform::UnitVector e2 = m_dp - pos;
 
-                const float valDp = e1_x * e2_x + e1_y * e2_y;
-                const float len = e1_x * e1_x + e1_y * e1_y;
+                const double valDp = e1.x * e2.x + e1.y * e2.y;
+                const double len = e1.x * e1.x + e1.y * e1.y;
 
-                m_dp.x = pos.x + (valDp * e1_x) / len;
-                m_dp.y = pos.y + (valDp * e1_y) / len;
-
-                m_sprite->setPointPosition(m_dp, m_referencial);
+                /*m_dp.x = pos.x + (valDp * e1.x) / len;
+                m_dp.y = pos.y + (valDp * e1.y) / len;*/
+                const Transform::UnitVector npp(pos.x + (valDp * e1.x) / len, pos.y + (valDp * e1.y) / len, m_dp.unit);
+                m_sprite->setPointPosition(npp, m_referential);
             }
         }
         else
         {
-            m_dp = m_sprite->getPositionTransformer()(position, -camera, m_sprite->getLayer());
-
-            const Transform::UnitVector center = m_sprite->getPosition(Transform::Referencial::Center).to<Transform::Units::ScenePixels>();
+            const Transform::UnitVector center = m_sprite->getPosition(Transform::Referential::Center).to<Transform::Units::ScenePixels>();
             const double n = (90 + ((m_sprite->getScaleFactor().y < 0) ? 180 : 0)) - 
                 (std::atan2(center.y - m_dp.y, center.x - m_dp.x)) * 180.0 / obe::Utils::Math::pi;
 
@@ -326,9 +335,9 @@ namespace obe::Graphics
         }
     }
 
-    Transform::Referencial LevelSpriteHandlePoint::getReferencial() const
+    Transform::Referential LevelSpriteHandlePoint::getReferential() const
     {
-        return m_referencial;
+        return m_referential;
     }
 
     LevelSpriteHandlePointType LevelSpriteHandlePoint::getType() const
@@ -401,7 +410,6 @@ namespace obe::Graphics
 
         if (spritePath != "")
             this->loadTexture(spritePath);
-        std::cout << "Sprite Pos : " << m_id << " is " << spritePos << std::endl;
         this->setPosition(spritePos);
         this->setSize(spriteSize);
         this->setWorkingUnit(Transform::stringToUnits(spriteUnits));

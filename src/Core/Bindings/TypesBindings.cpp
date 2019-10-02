@@ -4,6 +4,8 @@
 #include <Types/Serializable.hpp>
 #include <Types/Togglable.hpp>
 
+#include <kaguya/kaguya.hpp>
+
 namespace obe::Bindings::TypesBindings
 {
     void LoadIdentifiable(kaguya::State* lua)
@@ -11,6 +13,9 @@ namespace obe::Bindings::TypesBindings
         (*lua)["obe"]["Identifiable"].setClass(kaguya::UserdataMetatable<Types::Identifiable>()
             .addFunction("getId", &Types::Identifiable::getId)
             .addFunction("setId", &Types::Identifiable::setId)
+        );
+
+        (*lua)["obe"]["ProtectedIdentifiable"].setClass(kaguya::UserdataMetatable<Types::ProtectedIdentifiable>()
         );
     }
 

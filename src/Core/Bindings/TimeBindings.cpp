@@ -2,7 +2,10 @@
 #include <Time/FramerateCounter.hpp>
 #include <Time/Chronometer.hpp>
 #include <Time/FramerateManager.hpp>
+#include <Time/TimeCheck.hpp>
 #include <Time/TimeUtils.hpp>
+
+#include <kaguya/kaguya.hpp>
 
 namespace obe::Bindings::TimeBindings
 {
@@ -46,7 +49,20 @@ namespace obe::Bindings::TimeBindings
         );
     }
 
-    void LoadTimeUtils(kaguya::State * lua)
+    void LoadTimeCheck(kaguya::State* lua)
+    {
+        (*lua)["obe"]["TimeCheck"].setClass(kaguya::UserdataMetatable<Time::TimeCheck>()
+            .setConstructors<Time::TimeCheck(Time::TimeUnit), Time::TimeCheck(Time::TimeUnit, bool)>()
+            .addFunction("getDelay", &Time::TimeCheck::getDelay)
+            .addFunction("goToOver", &Time::TimeCheck::goToOver)
+            .addFunction("over", &Time::TimeCheck::over)
+            .addFunction("reset", &Time::TimeCheck::reset)
+            .addFunction("resetIfOver", &Time::TimeCheck::resetIfOver)
+            .addFunction("setDelay", &Time::TimeCheck::setDelay)
+        );
+    }
+
+    void LoadTimeUtils(kaguya::State* lua)
     {
         (*lua)["obe"]["TickSinceEpoch"] = kaguya::function(Time::getTickSinceEpoch);
         (*lua)["obe"]["TickSinceEpochMicro"] = kaguya::function(Time::getTickSinceEpochMicro);

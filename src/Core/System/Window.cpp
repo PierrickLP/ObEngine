@@ -11,7 +11,7 @@ namespace obe::System
     {
         vili::ViliParser windowConfig;
         std::reverse(Path::MountedPaths.begin(), Path::MountedPaths.end());
-        Path("Data/window.cfg.vili").loadResource(&windowConfig, [](vili::ViliParser* obj, std::string path) -> int { obj->parseFile(path); return 0x002; });
+        Path("Data/window.cfg.vili").loadAll(System::Loaders::dataLoader, windowConfig);
         std::reverse(Path::MountedPaths.begin(), Path::MountedPaths.end());
 
         unsigned int width = 1280;
@@ -152,7 +152,7 @@ namespace obe::System
         if (!m_docked)
             return m_window.getSize();
         else
-            m_surface.getSize();
+            return m_surface.getSize();
     }
 
     bool Window::isOpen() const

@@ -9,6 +9,7 @@
 #include <Debug/Logger.hpp>
 #include <Graphics/LevelSprite.hpp>
 #include <Transform/Polygon.hpp>
+#include <Types/Identifiable.hpp>
 
 namespace obe::Graphics::Canvas
 {
@@ -27,13 +28,12 @@ namespace obe::Graphics::Canvas
     /**
     * \brief A Drawable Canvas Element
     */
-    class CanvasElement
+    class CanvasElement : public Types::ProtectedIdentifiable
     {
     public:
         static const CanvasElementType Type = CanvasElementType::CanvasElement;
 
         Canvas* parent;
-        std::string id; // <REVISION> Possible id overlap in Canvas
         unsigned int layer = 1;
         bool visible = true;
         CanvasElementType type;
@@ -226,8 +226,8 @@ namespace obe::Graphics::Canvas
         */
         Canvas(unsigned int width, unsigned int height);
 
-        template <class S>
-        S* add(const std::string& id);
+        template <class T>
+        T* add(const std::string& id);
 
         CanvasElement* get(const std::string& id);
 
@@ -260,19 +260,24 @@ namespace obe::Graphics::Canvas
         void requiresSort();
     };
 
-    template <class S>
-    inline S* Canvas::add(const std::string& id)
+    template <class T>
+    inline T* Canvas::add(const std::string& id)
     {
         if (this->get(id) == nullptr)
         {
             m_sortRequired = true;
-            m_elements.push_back(std::make_unique<S>(this, id));
-            return static_cast<S*>(m_elements.back().get());
+            std::unique_ptr<T> newElement = std::make_unique<T>(this, id);
+            auto insert_it = std::find_if(
+                m_elements.begin(), m_elements.end(), 
+                [&newElement](const CanvasElement::Ptr& elem) { return newElement->layer <= elem->layer; }
+            );
+            auto elem_it = m_elements.insert(insert_it, std::move(newElement));
+            return static_cast<T*>(elem_it->get());
         }
-        else if (this->get(id)->type == S::Type)
+        else if (this->get(id)->type == T::Type)
         {
             Debug::Log->warn("<Scene> CanvasElement '{0}' already exists !", id);
-            return static_cast<S*>(this->get(id));
+            return static_cast<T*>(this->get(id));
         }
         else
         {

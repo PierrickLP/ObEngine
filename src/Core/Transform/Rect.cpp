@@ -21,10 +21,6 @@ namespace obe::Transform
         return moved;
     };
 
-    Rect::Rect(MovableType type) : Movable(type)
-    {
-    }
-
     float Rect::getRotation() const
     {
         return m_angle;
@@ -37,7 +33,7 @@ namespace obe::Transform
 
     void Rect::rotate(float angle, Transform::UnitVector origin)
     {
-        double radAngle = Utils::Math::convertToRadian(-angle);
+        const double radAngle = Utils::Math::convertToRadian(-angle);
             
         m_position = rotatePointAroundCenter(origin, m_position, radAngle);
         m_angle += angle;
@@ -45,69 +41,30 @@ namespace obe::Transform
             m_angle = Utils::Math::normalise(m_angle, 0, 360);
     }
 
-    //TODO remove calculation when dx and dy are equal to 0. Directly add to vec in switch case.
-    void Rect::transformRef(UnitVector& vec, Referencial ref, ConversionType type) const
+    void Rect::transformRef(UnitVector& vec, Referential ref, ConversionType type) const
     {
         const double factor = (type == ConversionType::From) ? 1.0 : -1.0;
-        double dx, dy;
         const double radAngle = Utils::Math::convertToRadian(-m_angle);
         const double cosAngle = std::cos(radAngle);
         const double sinAngle = std::sin(radAngle);
         UnitVector result;
 
-        switch (ref)
-        {
-        case Referencial::TopLeft:
-            dx = 0;
-            dy = 0;
-            break;
+        auto [dx, dy] = (ref.getOffset() * m_size).unpack();
 
-        case Referencial::Top:
-            dx = m_size.x / 2;
-            dy = 0;
-            break;
+        vec.add(UnitVector(
+            (dx * cosAngle - dy * sinAngle) * factor,
+            (dx * sinAngle + dy * cosAngle) * factor
+        ));
+    }
 
-        case Referencial::TopRight:
-            dx = m_size.x;
-            dy = 0;
-            break;
+    Rect::Rect()
+    {
+    }
 
-        case Referencial::Left:
-            dx = 0;
-            dy = m_size.y / 2;
-            break;
-
-        case Referencial::Center:
-            dx = m_size.x / 2;
-            dy = m_size.y / 2;
-            break;
-
-        case Referencial::Right:
-            dx = m_size.x;
-            dy = m_size.y / 2;
-            break;
-
-        case Referencial::BottomLeft:
-            dx = 0;
-            dy = m_size.y;
-            break;
-
-        case Referencial::Bottom:
-            dx = m_size.x / 2;
-            dy = m_size.y;
-            break;
-
-        case Referencial::BottomRight:
-            dx = m_size.x;
-            dy = m_size.y;
-            break;
-
-        default:
-            break;
-        }
-        result.x = (dx * cosAngle - dy * sinAngle) * factor;
-        result.y = (dx * sinAngle + dy * cosAngle) * factor;
-        vec.add(result);
+    Rect::Rect(const Transform::UnitVector& position, const Transform::UnitVector& size)
+    {
+        m_position = position;
+        m_size = size;
     }
 
     void Rect::draw(int posX, int posY) const
@@ -117,10 +74,10 @@ namespace obe::Transform
         std::vector<sf::Vector2i> drawPoints;
         UnitVector dPos(posX, posY, Transform::Units::ScenePixels);
 
-        const std::vector<Referencial> fixDisplayOrder =
-        { Referencial::TopLeft, Referencial::Top, Referencial::TopRight,
-            Referencial::Right, Referencial::BottomRight,
-            Referencial::Bottom, Referencial::BottomLeft, Referencial::Left };
+        const std::vector<Referential> fixDisplayOrder =
+        { Referential::TopLeft, Referential::Top, Referential::TopRight,
+            Referential::Right, Referential::BottomRight,
+            Referential::Bottom, Referential::BottomLeft, Referential::Left };
 
         for (uint8_t i = 0; i < 8; ++i)
         {
@@ -131,11 +88,11 @@ namespace obe::Transform
             drawPoints.emplace_back(world.x, world.y);
         }
 
-        double radAngle = Utils::Math::convertToRadian(-m_angle);
-        double cosAngle = std::cos(radAngle);
-        double sinAngle = std::sin(radAngle);
+        const double radAngle = Utils::Math::convertToRadian(-m_angle);
+        const double cosAngle = std::cos(radAngle);
+        const double sinAngle = std::sin(radAngle);
         UnitVector topPos;
-        this->transformRef(topPos, Referencial::Top, ConversionType::From);
+        this->transformRef(topPos, Referential::Top, ConversionType::From);
         topPos = topPos.to<Units::ScenePixels>();
         topPos += dPos;
         UnitVector vec = topPos;
@@ -161,18 +118,18 @@ namespace obe::Transform
     }
 
 
-    void Rect::setPointPosition(const UnitVector& position, Referencial ref)
+    void Rect::setPointPosition(const UnitVector& position, Referential ref)
     {
         UnitVector refPosition = this->getPosition(ref);
-        UnitVector oppositePointPosition = this->getPosition(reverseReferencial(ref));
+        UnitVector oppositePointPosition = this->getPosition(ref.flip());
         double radAngle = Utils::Math::convertToRadian(-m_angle);
         UnitVector movedPoint = rotatePointAroundCenter(position, oppositePointPosition, -radAngle);
 
         this->setPosition(position, ref);
 
-        if (isOnCorner(ref))
+        if (ref.isOnCorner())
         {
-            if (isOnTopSide(ref))
+            if (ref.isOnTopSide())
             {
                 this->setSize({ movedPoint.x - position.x , movedPoint.y - position.y }, ref);
             }
@@ -181,9 +138,9 @@ namespace obe::Transform
                 this->setSize({ position.x - movedPoint.x, position.y - movedPoint.y }, ref);
             }
         }
-        if (isOnLeftSide(ref) || isOnRightSide(ref))
+        if (ref.isOnLeftSide() || ref.isOnRightSide())
         {
-            if (isOnLeftSide(ref))
+            if (ref.isOnLeftSide())
             {
                 this->setSize({ movedPoint.x - position.x , m_size.y }, ref);
             }
@@ -192,9 +149,9 @@ namespace obe::Transform
                 this->setSize({ position.x - movedPoint.x, m_size.y }, ref);
             }
         }
-        else // we are on TopSide or LeftSide here, no need to specify the condition [Retard Sygmei] 
+        else // we are on TopSide or BottomSide here, no need to specify the condition
         {
-            if (isOnTopSide(ref))
+            if (ref.isOnTopSide())
             {
                 this->setSize({ m_size.x, movedPoint.y - position.y }, ref);
             }
@@ -205,35 +162,35 @@ namespace obe::Transform
         }
     }
 
-    UnitVector Rect::getPosition(Referencial ref) const
+    UnitVector Rect::getPosition(Referential ref) const
     {
         UnitVector getPosVec = m_position;
         this->transformRef(getPosVec, ref, ConversionType::From);
         return getPosVec;
     }
 
-    void Rect::setPosition(const UnitVector& position, Referencial ref)
+    void Rect::setPosition(const UnitVector& position, Referential ref)
     {
         UnitVector pVec = position.to<Units::SceneUnits>();
         this->transformRef(pVec, ref, ConversionType::To);
         m_position.set(pVec);
     }
 
-    void Rect::setSize(const UnitVector& size, Referencial ref)
+    void Rect::setSize(const UnitVector& size, Referential ref)
     {
-        UnitVector savePosition = this->getPosition(ref);
+        const UnitVector savePosition = this->getPosition(ref);
         m_size.set(size);
         this->setPosition(savePosition, ref);
     }
 
     void Rect::setPosition(const UnitVector& position)
     {
-        this->setPosition(position, Referencial::TopLeft);
+        this->setPosition(position, Referential::TopLeft);
     }
 
     UnitVector Rect::getPosition() const
     {
-        return this->getPosition(Referencial::TopLeft);
+        return this->getPosition(Referential::TopLeft);
     }
 
     void Rect::move(const UnitVector& position)
@@ -241,9 +198,9 @@ namespace obe::Transform
         m_position += position;
     }
 
-    void Rect::scale(const UnitVector& size, Referencial ref)
+    void Rect::scale(const UnitVector& size, Referential ref)
     {
-        UnitVector savePosition = this->getPosition(ref);
+        const UnitVector savePosition = this->getPosition(ref);
         m_size *= size;
         this->setPosition(savePosition, ref);
     }
@@ -253,7 +210,7 @@ namespace obe::Transform
         return m_size;
     }
 
-    void Rect::movePoint(const UnitVector& position, Referencial ref)
+    void Rect::movePoint(const UnitVector& position, Referential ref)
     {
     }
 

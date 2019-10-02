@@ -9,6 +9,7 @@ include(engine_git)
 add_subdirectory(extlibs/catch)
 add_subdirectory(extlibs/dynamicLinker)
 add_subdirectory(extlibs/vili)
+add_subdirectory(extlibs/fswrapper)
 
 # fmtlib is required by spdlog
 add_subdirectory(extlibs/fmt)
@@ -17,6 +18,11 @@ add_subdirectory(extlibs/spdlog)
 # lua is required by kaguya
 add_subdirectory(extlibs/lua)
 add_subdirectory(extlibs/kaguya)
+
+if (APPLE OR USE_FILESYSTEM_FALLBACK)
+    add_subdirectory(extlibs/tinydir)
+    set(USE_FILESYSTEM_FALLBACK TRUE CACHE BOOL "Use filesystem fallback" FORCE)
+endif()
 
 # minizip is required by elzip
 add_subdirectory(extlibs/minizip)

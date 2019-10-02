@@ -8,13 +8,15 @@
 #include <System/Loaders.hpp>
 #include <System/Path.hpp>
 
+#include <kaguya/kaguya.hpp>
+
 namespace obe::Bindings::GraphicsBindings
 {
     void LoadLevelSpriteHandlePoint(kaguya::State* lua)
     {
         (*lua)["obe"]["LevelSpriteHandlePoint"].setClass(kaguya::UserdataMetatable<Graphics::LevelSpriteHandlePoint>()
             .addFunction("getRect", &Graphics::LevelSpriteHandlePoint::getRect)
-            .addFunction("getReferencial", &Graphics::LevelSpriteHandlePoint::getReferencial)
+            .addFunction("getReferential", &Graphics::LevelSpriteHandlePoint::getReferential)
             .addFunction("moveTo", &Graphics::LevelSpriteHandlePoint::moveTo)
         );
     }
@@ -28,11 +30,11 @@ namespace obe::Bindings::GraphicsBindings
         Load(lua, "obe.Identifiable");
         (*lua)["obe"]["LevelSprite"].setClass(kaguya::UserdataMetatable<Graphics::LevelSprite,
             kaguya::MultipleBase<
-            Transform::UnitBasedObject,
-            Types::Selectable,
-            Transform::Rect,
-            Types::Serializable,
-            Types::Identifiable
+                Transform::UnitBasedObject,
+                Types::Selectable,
+                Transform::Rect,
+                Types::Serializable,
+                Types::Identifiable
             >
             >()
             .addFunction("drawHandle", &Graphics::LevelSprite::drawHandle)
@@ -64,6 +66,7 @@ namespace obe::Bindings::GraphicsBindings
             .addFunction("setScalingOrigin", &Graphics::LevelSprite::setScalingOrigin)
             .addFunction("setShader", &Graphics::LevelSprite::setShader)
             .addFunction("setTexture", &Graphics::LevelSprite::setTexture)
+            .addFunction("setTextureRect", &Graphics::LevelSprite::setTextureRect)
             .addFunction("setTranslationOrigin", &Graphics::LevelSprite::setTranslationOrigin)
             .addFunction("setVisible", &Graphics::LevelSprite::setVisible)
             .addFunction("setZDepth", &Graphics::LevelSprite::setZDepth)
@@ -89,10 +92,10 @@ namespace obe::Bindings::GraphicsBindings
         Load(lua, "obe.UnitVector");
         Load(lua, "SFML.Color");
         (*lua)["obe"]["Canvas"] = kaguya::NewTable();
-        (*lua)["obe"]["Canvas"]["CanvasElement"].setClass(kaguya::UserdataMetatable<Graphics::Canvas::CanvasElement>()
+        (*lua)["obe"]["Canvas"]["CanvasElement"].setClass(
+            kaguya::UserdataMetatable<Graphics::Canvas::CanvasElement, Types::ProtectedIdentifiable>()
             .addProperty("layer", &Graphics::Canvas::CanvasElement::layer)
             .addProperty("visible", &Graphics::Canvas::CanvasElement::visible)
-            .addProperty("id", &Graphics::Canvas::CanvasElement::id)
             .addFunction("setLayer", &Graphics::Canvas::CanvasElement::setLayer)
         );
         (*lua)["obe"]["Canvas"]["CanvasShape"].setClass(kaguya::UserdataMetatable<Graphics::Canvas::CanvasPositionable>()
@@ -152,7 +155,7 @@ namespace obe::Bindings::GraphicsBindings
         (*lua)["obe"]["Canvas"]["Alignment"]["Vertical"]["Center"] = Graphics::Canvas::TextVerticalAlign::Center;
         (*lua)["obe"]["Canvas"]["Alignment"]["Vertical"]["Bottom"] = Graphics::Canvas::TextVerticalAlign::Bottom;
 
-        System::Path("Lib/Internal/Canvas.lua").loadResource(&Script::ScriptEngine, System::Loaders::luaLoader);
+        System::Path("Lib/Internal/Canvas.lua").load(System::Loaders::luaLoader, Script::ScriptEngine);
     }
 
     void LoadGraphicsUtils(kaguya::State* lua)

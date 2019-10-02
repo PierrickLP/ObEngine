@@ -1,11 +1,17 @@
-#include <Bindings/AnimationBindings.hpp>
+// Corresponding header
 #include <Bindings/Bindings.hpp>
+
+// ObEngineCore headers
+#include <Bindings/AnimationBindings.hpp>
 #include <Bindings/CollisionBindings.hpp>
+#include <Bindings/CPPBindings.hpp>
+#include <Bindings/DebugBindings.hpp>
 #include <Bindings/GraphicsBindings.hpp>
 #include <Bindings/InputBindings.hpp>
+#include <Bindings/NetworkBindings.hpp>
 #include <Bindings/SceneBindings.hpp>
-#include <Bindings/SFMLBindings.hpp>
 #include <Bindings/ScriptBindings.hpp>
+#include <Bindings/SFMLBindings.hpp>
 #include <Bindings/SoundBindings.hpp>
 #include <Bindings/SystemBindings.hpp>
 #include <Bindings/TimeBindings.hpp>
@@ -15,11 +21,11 @@
 #include <Bindings/UtilsBindings.hpp>
 #include <Bindings/ViliBindings.hpp>
 #include <Debug/Logger.hpp>
-#include <System/Path.hpp>
-#include <Utils/FileUtils.hpp>
+#include <System/Plugin.hpp>
 #include <Utils/StringUtils.hpp>
-#include <Utils/VectorUtils.hpp>
-#include "System/Plugin.hpp"
+
+// extlibs headers
+#include <kaguya/kaguya.hpp>
 
 namespace obe::Bindings
 {
@@ -27,8 +33,8 @@ namespace obe::Bindings
 
     void Load(kaguya::State* lua, const std::string& lib)
     {
-        const std::vector<std::string> splittedLibPath = Utils::String::split(lib, ".");
-        BindTree.walkTo(splittedLibPath)(lua);
+        const std::vector<std::string> splitLibPath = Utils::String::split(lib, ".");
+        BindTree.walkTo(splitLibPath)(lua);
     }
 
     void IndexBaseBindings()
@@ -44,12 +50,15 @@ namespace obe::Bindings
             .add("PolygonalCollider", &CollisionBindings::LoadPolygonalCollider)
             .add("Trajectory", &CollisionBindings::LoadTrajectory)
             .add("TrajectoryNode", &CollisionBindings::LoadTrajectoryNode)
+        //Debug
+            .add("Log", &DebugBindings::LoadLog)
         // Graphics
             .add("Canvas", &GraphicsBindings::LoadCanvas)
             .add("Color", &GraphicsBindings::LoadColor)
             .add("LevelSprite", &GraphicsBindings::LoadLevelSprite)
             .add("LevelSpriteHandlePoint", &GraphicsBindings::LoadLevelSpriteHandlePoint)
             .add("ResourceManager", &GraphicsBindings::LoadResourceManager)
+            .add("Shader", &GraphicsBindings::LoadShader)
             .add("Utils", &GraphicsBindings::LoadGraphicsUtils)
         // Input
             .add("InputAction", &InputBindings::LoadInputAction)
@@ -60,9 +69,12 @@ namespace obe::Bindings
             .add("InputCondition", &InputBindings::LoadInputCondition)
             .add("InputFunctions", &InputBindings::LoadInputFunctions)
             .add("InputManager", &InputBindings::LoadInputManager)
+        //Network
+            .add("TcpServer", &NetworkBindings::LoadTcpServer)
         // Scene
             .add("Camera", &SceneBindings::LoadCamera)
             .add("Scene", &SceneBindings::LoadScene)
+            .add("SceneNode", &SceneBindings::LoadSceneNode)
         // Script
             .add("Script", &ScriptBindings::LoadGameObject)
         // Sound
@@ -80,14 +92,14 @@ namespace obe::Bindings
             .add("Chronometer", &TimeBindings::LoadChronometer)
             .add("FPSCounter", &TimeBindings::LoadFPSCounter)
             .add("FramerateManager", &TimeBindings::LoadFramerateManager)
+            .add("TimeCheck", &TimeBindings::LoadTimeCheck)
             .add("TimeUtils", &TimeBindings::LoadTimeUtils)
         // Transform
             .add("Movable", &TransformBindings::LoadMovable)
             .add("Polygon", &TransformBindings::LoadPolygon)
             .add("ProtectedUnitVector", &TransformBindings::LoadProtectedUnitVector)
             .add("Rect", &TransformBindings::LoadRect)
-            .add("Referencial", &TransformBindings::LoadReferencial)
-            .add("SceneNode", &TransformBindings::LoadSceneNode)
+            .add("Referential", &TransformBindings::LoadReferential)
             .add("UnitBasedObject", &TransformBindings::LoadUnitBasedObject)
             .add("Units", &TransformBindings::LoadUnits)
             .add("UnitVector", &TransformBindings::LoadUnitVector)
@@ -117,6 +129,7 @@ namespace obe::Bindings
             .add("Shape", SFMLBindings::LoadSfShape)
             .add("Text", SFMLBindings::LoadSfText)
             .add("Texture", SFMLBindings::LoadSfTexture)
+            .add("Time", SFMLBindings::LoadSfTime)
             .add("Transformable", SFMLBindings::LoadSfTransformable)
             .add("Vector", SFMLBindings::LoadSfVector);
 

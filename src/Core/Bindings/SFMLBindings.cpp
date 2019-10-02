@@ -13,9 +13,13 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Text.hpp>
 #include <SFML/Graphics/Transformable.hpp>
+#include <SFML/Network/TcpSocket.hpp>
 
 #include <Bindings/Bindings.hpp>
 #include <Bindings/SFMLBindings.hpp>
+#include <SFML/System/Time.hpp>
+
+#include <kaguya/kaguya.hpp>
 
 namespace obe::Bindings::SFMLBindings
 {
@@ -216,6 +220,21 @@ namespace obe::Bindings::SFMLBindings
         );
     }
 
+    void LoadSfTcpSocket(kaguya::State* lua)
+    {
+        /*(*lua)["SFML"]["TcpSocket"].setClass(kaguya::UserdataMetatable<sf::TcpSocket>()
+            .addFunction("connect", &sf::TcpSocket::connect)
+            .addFunction("disconnect", &sf::TcpSocket::disconnect)
+            .addFunction("getLocalPort", &sf::TcpSocket::getLocalPort)
+            .addFunction("getRemoteAddress", &sf::TcpSocket::getRemoteAddress)
+            .addFunction("getRemotePort", &sf::TcpSocket::getRemotePort)
+            .addFunction("isBlocking", &sf::TcpSocket::isBlocking)
+            //.addFunction("receive", &sf::TcpSocket::receive)
+            //.addFunction("send", &sf::TcpSocket::send)
+            .addFunction("setBlocking", &sf::TcpSocket::setBlocking)
+        );*/
+    }
+
     KAGUYA_MEMBER_FUNCTION_OVERLOADS(SFML_String_toAnsiString_wrapper, sf::String, toAnsiString, 0, 1);
     void LoadSfText(kaguya::State* lua)
     {
@@ -316,6 +335,29 @@ namespace obe::Bindings::SFMLBindings
             .addFunction("setRepeated", &sf::Texture::setRepeated)
             .addFunction("setSmooth", &sf::Texture::setSmooth)
         );
+    }
+
+    void LoadSfTime(kaguya::State* lua)
+    {
+        (*lua)["SFML"]["Time"].setClass(kaguya::UserdataMetatable<sf::Time>()
+            .setConstructors<sf::Time()>()
+            .addFunction("asMicroseconds", &sf::Time::asMicroseconds)
+            .addFunction("asMilliseconds", &sf::Time::asMilliseconds)
+            .addFunction("asSeconds", &sf::Time::asSeconds)
+            .addStaticField("Zero", &sf::Time::Zero)
+        );
+        (*lua)["SFML"]["Time"]["Seconds"] = kaguya::function([](float seconds)
+        {
+            return std::move(sf::seconds(seconds));
+        });
+        (*lua)["SFML"]["Time"]["Milliseconds"] = kaguya::function([](sf::Int32 milliseconds)
+        {
+            return std::move(sf::milliseconds(milliseconds));
+        });
+        (*lua)["SFML"]["Time"]["Microseconds"] = kaguya::function([](sf::Int64 microseconds)
+        {
+            return std::move(sf::microseconds(microseconds));
+        });
     }
 
     void LoadSfTransformable(kaguya::State* lua)

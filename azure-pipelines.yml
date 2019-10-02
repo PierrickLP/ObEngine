@@ -1,0 +1,39 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+jobs:
+- job: macOS
+  pool:
+    vmImage: 'macOS-10.14'
+  steps:
+  - script: brew install sfml
+  - script: mkdir build
+  - script: cd build && cmake -DBUILD_TESTS=ON ..
+  - script: cd build && make -j6
+  - script: cd build && ./tests/ObEngineTests
+ 
+- job: Windows
+  variables:
+    MSVC_DEFAULT_OPTIONS: ON
+    SFML_DIR: D:\a\1\s\Libraries\SFML-2.5.1
+    Qt5_DIR: C:\Qt\5.11.1\msvc2017_64\lib\cmake\Qt5
+  pool:
+    vmImage: 'windows-2019'
+  steps:
+  - task: DownloadFile@1
+    inputs:
+      FileUrl: 'https://www.sfml-dev.org/files/SFML-2.5.1-windows-vc15-64-bit.zip'
+      DestinationFolder: '$(System.DefaultWorkingDirectory)'
+      requireAuthentication: false
+  - task: ExtractFiles@1
+    inputs:
+      archiveFilePatterns: 'SFML-2.5.1-windows-vc15-64-bit.zip'
+      destinationFolder: 'Libraries'
+      cleanDestinationFolder: true
+  - script: cmake -G "Visual Studio 16 2019" -A x64 -DSFML_DIR=%SFML_DIR% -DBUILD_TESTS=ON .
+  - script: dir
+  - task: VSBuild@1
+    inputs:
+      solution: '**\*.sln'

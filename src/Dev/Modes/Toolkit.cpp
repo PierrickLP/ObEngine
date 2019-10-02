@@ -1,22 +1,25 @@
-#include <kaguya/kaguya.hpp>
 #include <ErrorHandler.hpp>
+#include <kaguya/kaguya.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics/Font.hpp>
+#include <TGUI/Gui.hpp>
+#include <TGUI/Loading/Theme.hpp>
+#include <TGUI/Widgets/Button.hpp>
+#include <TGUI/Widgets/EditBox.hpp>
+#include <TGUI/Widgets/Label.hpp>
+#include <TGUI/Widgets/Panel.hpp>
 
 #include <Bindings/Bindings.hpp>
 #include <Modes/Toolkit.hpp>
+#include <Modes/ToolkitContentBox.hpp>
+#include <System/Path.hpp>
+#include <System/Loaders.hpp>
 #include <Utils/StringUtils.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Font.hpp>
-#include "TGUI/Gui.hpp"
-#include "TGUI/Loading/Theme.hpp"
-#include "TGUI/Widgets/Panel.hpp"
-#include "Modes/ToolkitContentBox.hpp"
-#include "TGUI/Widgets/Label.hpp"
-#include "TGUI/Widgets/Button.hpp"
-#include "TGUI/Widgets/EditBox.hpp"
+
 
 namespace obe::Modes
 {
-	void startToolkitMode()
+    void startToolkitMode()
     {
         bool continueToolkit = true;
         std::vector<std::string> commandHistory;
@@ -26,8 +29,12 @@ namespace obe::Modes
 
         sf::Font toolkitFont;
         toolkitFont.loadFromFile("Data/Fonts/weblysleekuil.ttf");
+
+        sf::Font font;
+        System::Path("Data/Fonts/weblysleekuil.ttf").load(System::Loaders::fontLoader, font);
+
         tgui::Gui gui(window);
-        gui.setFont("Data/Fonts/weblysleekuil.ttf");
+        gui.setFont(font);
         tgui::Theme baseTheme;
         baseTheme.load("Data/GUI/obe.style");
         std::string currentMap = "";
@@ -90,6 +97,7 @@ namespace obe::Modes
         });
 
         toolkitEngine["This"] = &toolkitEngine;
+        toolkitEngine.dofile("Lib/Internal/LuaCore.lua");
         toolkitEngine.dofile("Lib/Internal/ScriptInit.lua");
         Bindings::BindTree(&toolkitEngine);
         toolkitEngine["obe"]["version"] = OBENGINE_VERSION;
@@ -196,7 +204,7 @@ namespace obe::Modes
                 if (event.type == sf::Event::TextEntered && event.text.unicode == 63)
                 {
                     toolkitInput->setText(Utils::String::replace(toolkitInput->getText().toAnsiString(), "?", ""));
-                    toolkitEngine["getHelp"](toolkitInput->getText().toAnsiString());
+                    toolkitEngine["printHelp"](toolkitInput->getText().toAnsiString());
                 }
             }
 

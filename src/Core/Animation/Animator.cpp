@@ -1,7 +1,10 @@
+// Corresponding header
 #include <Animation/Animator.hpp>
+
+// ObEngineCore headers
+#include <Graphics/LevelSprite.hpp>
 #include <System/Loaders.hpp>
 #include <Utils/VectorUtils.hpp>
-#include "Graphics/LevelSprite.hpp"
 
 namespace obe::Animation
 {
@@ -57,14 +60,13 @@ namespace obe::Animation
 
     void Animator::setKey(const std::string& key)
     {
-        Debug::Log->trace("<Animator> Set Animation Key {0} for Animator at {1}", key, m_animatorPath.toString());
-        if (m_animationSet.find(key) == m_animationSet.end())
+        Debug::Log->debug("<Animator> Set Animation Key {0} for Animator at {1} {2}", key, m_animatorPath.toString(), m_animationSet.size());
+        if (!m_animationSet.empty() && m_animationSet.find(key) == m_animationSet.end())
         {
             throw aube::ErrorHandler::Raise("ObEngine.Animation.Animator.AnimationNotFound", {
                 {"function", "setKey"},{"animation", key},{"%animator", m_animatorPath.toString()}
             });
         }
-
         if (key != m_currentAnimationName)
         {
             bool changeAnim = false;
@@ -94,16 +96,18 @@ namespace obe::Animation
 
     void Animator::loadAnimator()
     {
-        Debug::Log->trace("<Animator> Loading Animator at {0}", m_animatorPath.toString());
+        Debug::Log->debug("<Animator> Loading Animator at {0}", m_animatorPath.toString());
         std::vector<std::string> listDir;
-        m_animatorPath.loadResource(&listDir, System::Loaders::dirPathLoader);
+        m_animatorPath.loadAll(System::Loaders::dirPathLoader, listDir);
         std::vector<std::string> allFiles;
-        m_animatorPath.loadResource(&allFiles, System::Loaders::filePathLoader);
+        m_animatorPath.loadAll(System::Loaders::filePathLoader, allFiles);
         vili::ViliParser animatorCfgFile;
         std::unordered_map<std::string, vili::ComplexNode*> animationParameters;
         if (Utils::Vector::contains(std::string("animator.cfg.vili"), allFiles))
         {
-            System::Path(m_animatorPath.toString() + "/" + "animator.cfg.vili").loadResource(&animatorCfgFile, System::Loaders::dataLoader);
+            System::Path(
+                m_animatorPath.toString() + "/" + "animator.cfg.vili"
+            ).load(System::Loaders::dataLoader, animatorCfgFile);
             for (vili::ComplexNode* currentAnim : animatorCfgFile.at("Animator").getAll<vili::ComplexNode>())
                 animationParameters[currentAnim->getId()] = &animatorCfgFile.at("Animator", currentAnim->getId());
         }

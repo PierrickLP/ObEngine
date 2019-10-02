@@ -12,9 +12,12 @@ namespace obe::Scene
 {
     Scene::Scene() : 
     Registrable("Scene"),
-    m_sceneTriggers(Triggers::TriggerDatabase::GetInstance()->createTriggerGroup("Global", "Scene"), Triggers::TriggerGroupPtrRemover)
+    m_sceneTriggers(
+        Triggers::TriggerDatabase::GetInstance()->createTriggerGroup("Global", "Scene"), 
+        Triggers::TriggerGroupPtrRemover)
+    
     {
-        System::Path("Lib/Internal/GameInit.lua").loadResource(&Script::ScriptEngine, System::Loaders::luaLoader);
+        System::Path("Lib/Internal/GameInit.lua").load(System::Loaders::luaLoader, Script::ScriptEngine);
         Triggers::TriggerDatabase::GetInstance()->createNamespace("Map");
         m_showCollisionModes["drawLines"] = false;
         m_showCollisionModes["drawPoints"] = false;
@@ -120,7 +123,7 @@ namespace obe::Scene
         if (filename != m_levelFileName)
         {
             m_levelFile = vili::ViliParser();
-            m_baseFolder = System::Path("Data/Maps").add(filename).loadResource(&m_levelFile, System::Loaders::dataLoader);
+            m_baseFolder = System::Path("Data/Maps").add(filename).load(System::Loaders::dataLoader, m_levelFile);
             m_levelFileName = filename;
         }
 
@@ -140,18 +143,18 @@ namespace obe::Scene
                 view.at<vili::DataNode>("pos", "x").get<double>(),
                 view.at<vili::DataNode>("pos", "y").get<double>(),
                 Transform::stringToUnits(view.at<vili::DataNode>("pos", "unit").get<std::string>()));
-            m_cameraInitialReferencial = Transform::Referencial::TopLeft;
-            if (m_levelFile->at("View").contains(vili::NodeType::ComplexNode, "referencial"))
+            m_cameraInitialReferential = Transform::Referential::TopLeft;
+            if (m_levelFile->at("View").contains(vili::NodeType::ComplexNode, "referential"))
             {
-                m_cameraInitialReferencial = Transform::stringToReferencial(
-                    m_levelFile->at("View", "referencial").getDataNode("referencial").get<std::string>()
+                m_cameraInitialReferential = Transform::Referential::FromString(
+                    m_levelFile->at("View", "referential").getDataNode("referential").get<std::string>()
                 );
             }
-            Debug::Log->debug("<Scene> Set Camera Position at : {0}, {1} using Referencial {2}", 
+            Debug::Log->debug("<Scene> Set Camera Position at : {0}, {1} using Referential {2}", 
                 m_cameraInitialPosition.x, 
                 m_cameraInitialPosition.y, 
-                Transform::referencialToString(m_cameraInitialReferencial));
-            m_camera.setPosition(m_cameraInitialPosition, m_cameraInitialReferencial);
+                m_cameraInitialReferential.toString());
+            m_camera.setPosition(m_cameraInitialPosition, m_cameraInitialReferential);
             std::cout << m_camera.getPosition() << std::endl;
         }
         else
@@ -208,14 +211,14 @@ namespace obe::Scene
             vili::ComplexNode& script = m_levelFile.at("Script");
             if (script.contains(vili::NodeType::DataNode, "source"))
             {
-                System::Path(script.at<vili::DataNode>("source")).loadResource(&Script::ScriptEngine, System::Loaders::luaLoader);
+                System::Path(script.at<vili::DataNode>("source")).load(System::Loaders::luaLoader, Script::ScriptEngine);
                 m_scriptArray.push_back(script.at<vili::DataNode>("source"));
             }
             else if (script.contains(vili::NodeType::ArrayNode, "sources"))
             {
                 for (vili::DataNode* scriptName : script.getArrayNode("sources"))
                 {
-                    System::Path(*scriptName).loadResource(&Script::ScriptEngine, System::Loaders::luaLoader);
+                    System::Path(*scriptName).load(System::Loaders::luaLoader, Script::ScriptEngine);
                     m_scriptArray.push_back(*scriptName);
                 }
             }
@@ -298,11 +301,13 @@ namespace obe::Scene
         dataStore->at("View", "pos").useTemplate(dataStore->getTemplate(
             "Vector2<" + Transform::unitsToString(m_cameraInitialPosition.unit) + ">")
         );
-        dataStore->at("View").createComplexNode("referencial");
-        dataStore->at("View", "referencial").createDataNode("referencial", Transform::referencialToString(m_cameraInitialReferencial));
-        dataStore->at("View", "referencial").useTemplate(dataStore->getTemplate(
-            "Referencial<" + Transform::referencialToString(m_cameraInitialReferencial) + ">"
-        ));
+        dataStore->at("View").createComplexNode("referential");
+        dataStore->at("View", "referential").createDataNode("referential", 
+            m_cameraInitialReferential.toString("{}"));
+        if (m_cameraInitialReferential.isKnown())
+            dataStore->at("View", "referential").useTemplate(dataStore->getTemplate(
+                m_cameraInitialReferential.toString()
+            ));
 
         //LevelSprites
         if (m_spriteArray.size() > 0) (*dataStore)->createComplexNode("LevelSprites");
@@ -376,16 +381,18 @@ namespace obe::Scene
                 if (!gameObject.deletable)
                     gameObject.update();
             }
-            /*m_gameObjectArray.erase(std::remove_if(m_gameObjectArray.begin(), m_gameObjectArray.end(), [this](const std::unique_ptr<Script::GameObject>& ptr) {
+            m_gameObjectArray.erase(std::remove_if(m_gameObjectArray.begin(), m_gameObjectArray.end(), [this](const std::unique_ptr<Script::GameObject>& ptr) {
                 if (ptr->deletable)
                 {
+                    Debug::Log->debug("<Scene> Removing GameObject {}", ptr->getId());
                     if (ptr->m_hasLevelSprite)
                         this->removeLevelSprite(ptr->getLevelSprite()->getId());
                     if (ptr->m_hasCollider)
                         this->removeCollider(ptr->getCollider()->getId());
                     return true;
                 }
-            }), m_gameObjectArray.end());*/
+                return false;
+            }), m_gameObjectArray.end());
         }
     }
 
@@ -455,7 +462,7 @@ namespace obe::Scene
         const unsigned int envCount = Script::ScriptEngine["__ENV_COUNT"];
         for (unsigned int i = 0; i < envCount; i++)
         {
-            const bool exists = Script::ScriptEngine["LuaUtil"]["Exists"]("__ENVIRONMENTS[" + std::to_string(i) + "]");
+            const bool exists = Script::ScriptEngine["LuaCore"]["Exists"]("__ENVIRONMENTS[" + std::to_string(i) + "]");
             if (exists)
             {
                 Script::ScriptEngine["__ENVIRONMENTS"][i]["__ENV_ENABLED"] = state;
@@ -486,8 +493,7 @@ namespace obe::Scene
     void Scene::removeGameObject(const std::string& id)
     {
         m_gameObjectArray.erase(std::remove_if(m_gameObjectArray.begin(), m_gameObjectArray.end(), [&id](const std::unique_ptr<Script::GameObject>& ptr){
-            if (ptr->getId() == id)
-                return true;
+            return (ptr->getId() == id);
         }), m_gameObjectArray.end());
     }
 
@@ -586,9 +592,9 @@ namespace obe::Scene
     Graphics::LevelSprite* Scene::getLevelSpriteByPosition(const Transform::UnitVector& position, const Transform::UnitVector& camera, const int layer)
     {
         Graphics::LevelSprite* returnSpr = nullptr;
-        std::vector<Transform::Referencial> rectPts = { 
-            Transform::Referencial::TopLeft, Transform::Referencial::TopRight,
-            Transform::Referencial::BottomRight, Transform::Referencial::BottomLeft 
+        std::vector<Transform::Referential> rectPts = { 
+            Transform::Referential::TopLeft, Transform::Referential::TopRight,
+            Transform::Referential::BottomRight, Transform::Referential::BottomLeft 
         };
         const Transform::UnitVector zeroOffset(0, 0);
             
@@ -598,7 +604,7 @@ namespace obe::Scene
             Collision::PolygonalCollider positionCollider("positionCollider");
             positionCollider.addPoint(getSpriteVec[i]->getPositionTransformer()(position, camera, layer));
             Collision::PolygonalCollider sprCollider("sprCollider");
-            for (Transform::Referencial& ref : rectPts)
+            for (Transform::Referential& ref : rectPts)
             {
                 sprCollider.addPoint(getSpriteVec[i]->getPosition(ref));
             }
@@ -706,7 +712,7 @@ namespace obe::Scene
         }), m_colliderArray.end());
     }
 
-    Transform::SceneNode& Scene::getSceneRootNode()
+    SceneNode& Scene::getSceneRootNode()
     {
         return m_sceneRoot;
     }

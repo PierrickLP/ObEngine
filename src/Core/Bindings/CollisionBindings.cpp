@@ -4,6 +4,7 @@
 #include <Collision/Trajectory.hpp>
 #include <Collision/TrajectoryNode.hpp>
 
+#include <kaguya/kaguya.hpp>
 
 namespace obe::Bindings::CollisionBindings
 {
@@ -32,7 +33,7 @@ namespace obe::Bindings::CollisionBindings
     void LoadTrajectoryNode(kaguya::State* lua)
     {
         (*lua)["obe"]["TrajectoryNode"].setClass(kaguya::UserdataMetatable<Collision::TrajectoryNode>()
-            .setConstructors<Collision::TrajectoryNode(Transform::SceneNode*)>()
+            .setConstructors<Collision::TrajectoryNode(Scene::SceneNode*)>()
             .addFunction("addTrajectory", TrajectoryNode_addTrajectory_wrapper())
             .addFunction("getSceneNode", &Collision::TrajectoryNode::getSceneNode)
             .addFunction("getTrajectory", &Collision::TrajectoryNode::getTrajectory)
@@ -63,13 +64,23 @@ namespace obe::Bindings::CollisionBindings
             >
             >()
             .setConstructors<Collision::PolygonalCollider(const std::string&)>()
+            .addStaticFunction("SetTagColor", &Collision::PolygonalCollider::SetTagColor)
             .addFunction("addOriginChild", &Collision::PolygonalCollider::addOriginChild)
             .addFunction("addPoint", PolygonalCollider_addPoint_wrapper())
             .addFunction("addTag", &Collision::PolygonalCollider::addTag)
             .addFunction("clearHighlights", PolygonalCollider_clearHighlights_wrapper())
             .addFunction("clearOriginChildren", &Collision::PolygonalCollider::clearOriginChildren)
             .addFunction("clearTags", &Collision::PolygonalCollider::clearTags)
-            .addFunction("doesCollide", &Collision::PolygonalCollider::doesCollide)
+            .addOverloadedFunctions("doesCollide",
+                static_cast<bool
+                    (Collision::PolygonalCollider::*)
+                    (const Transform::UnitVector&) const>
+                    (&Collision::PolygonalCollider::doesCollide),
+                static_cast<bool
+                    (Collision::PolygonalCollider::*)
+                    (Collision::PolygonalCollider&, const Transform::UnitVector&) const>
+                    (&Collision::PolygonalCollider::doesCollide)
+            )
             .addFunction("doesHaveAnyTag", &Collision::PolygonalCollider::doesHaveAnyTag)
             .addFunction("doesHaveTag", &Collision::PolygonalCollider::doesHaveTag)
             .addFunction("getAllTags", &Collision::PolygonalCollider::getAllTags)

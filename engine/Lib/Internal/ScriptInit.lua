@@ -1,34 +1,34 @@
 Core = {}; -- Core Lib
 Scenes = {};
-LuaUtil = {};
 pl = {};
+Debug = {};
 
-inspect = require("Lib/StdLib/Inspect");
-pl.Date = require("Lib/StdLib/pl/Date");
-pl.List = require("Lib/StdLib/pl/List");
-pl.String = require("Lib/StdLib/pl/stringx");
-pl.Table = require("Lib/StdLib/pl/tablex");
-pl.Array2d = require("Lib/StdLib/pl/array2d");
-pl.Comprehension = require("Lib/StdLib/pl/comprehension");
+inspect = require("Lib/Extlibs/Inspect");
+pl.Date = require("Lib/Extlibs/pl/Date");
+pl.List = require("Lib/Extlibs/pl/List");
+pl.String = require("Lib/Extlibs/pl/stringx");
+pl.Table = require("Lib/Extlibs/pl/tablex");
+pl.Array2d = require("Lib/Extlibs/pl/array2d");
+pl.Comprehension = require("Lib/Extlibs/pl/comprehension");
 C = pl.Comprehension.new();
-pl.Func = require("Lib/StdLib/pl/func");
-pl.Input = require("Lib/StdLib/pl/input");
-pl.Balanced = require("Lib/StdLib/pl/luabalanced");
-pl.Map = require("Lib/StdLib/pl/Map");
-pl.Operator = require("Lib/StdLib/pl/operator");
-pl.Permute = require("Lib/StdLib/pl/permute");
-pl.Seq = require("Lib/StdLib/pl/seq");
-pl.Sip = require("Lib/StdLib/pl/sip");
-pl.Strict = require("Lib/StdLib/pl/strict");
-pl.StringIO = require("Lib/StdLib/pl/stringio");
-pl.Set = require("Lib/StdLib/pl/Set");
-pl.Text = require("Lib/StdLib/pl/text");
-pl.Types = require("Lib/StdLib/pl/types");
-pl.Utils = require("Lib/StdLib/pl/utils");
+pl.Func = require("Lib/Extlibs/pl/func");
+pl.Input = require("Lib/Extlibs/pl/input");
+pl.Balanced = require("Lib/Extlibs/pl/luabalanced");
+pl.Map = require("Lib/Extlibs/pl/Map");
+pl.Operator = require("Lib/Extlibs/pl/operator");
+pl.Permute = require("Lib/Extlibs/pl/permute");
+pl.Seq = require("Lib/Extlibs/pl/seq");
+pl.Sip = require("Lib/Extlibs/pl/sip");
+pl.Strict = require("Lib/Extlibs/pl/strict");
+pl.StringIO = require("Lib/Extlibs/pl/stringio");
+pl.Set = require("Lib/Extlibs/pl/Set");
+pl.Text = require("Lib/Extlibs/pl/text");
+pl.Types = require("Lib/Extlibs/pl/types");
+pl.Utils = require("Lib/Extlibs/pl/utils");
 
 pl.String:import();
 
-function LuaUtil.Exists(path)
+function LuaCore.Exists(path)
     local pathToTest = load("return " .. path);
     noError, noNil = pcall(pathToTest);
     if not noError or noNil == nil then
@@ -37,10 +37,10 @@ function LuaUtil.Exists(path)
     return true;
 end
 
-LuaUtil.libList = {};
+LuaCore.libList = {};
 
-function LuaUtil.IsLibLoaded(lib)
-    for _, v in pairs(LuaUtil.libList) do
+function LuaCore.IsLibLoaded(lib)
+    for _, v in pairs(LuaCore.libList) do
         if v == lib then
             return true;
         end

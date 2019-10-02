@@ -7,7 +7,7 @@
 #include <Collision/PolygonalCollider.hpp>
 #include <Debug/Logger.hpp>
 #include <Graphics/LevelSprite.hpp>
-#include <Transform/SceneNode.hpp>
+#include <Scene/SceneNode.hpp>
 #include <Triggers/TriggerGroup.hpp>
 
 namespace obe::Scene
@@ -60,7 +60,7 @@ namespace obe::Script
         Graphics::LevelSprite* m_objectLevelSprite;
         Collision::PolygonalCollider* m_objectCollider;
         Triggers::TriggerGroupPtr m_localTriggers;
-        Transform::SceneNode m_objectNode;
+        Scene::SceneNode m_objectNode;
 
         std::vector<std::pair<Triggers::Trigger*, std::string>> m_registeredTriggers;
         std::vector<std::tuple<std::string, std::string, std::string>> m_registeredAliases;
@@ -72,7 +72,7 @@ namespace obe::Script
         bool m_hasCollider = false;
         bool m_hasLevelSprite = false;
         bool m_hasScriptEngine = false;
-        bool m_initialised = false;
+        bool m_active = false;
         bool m_canUpdate = true;
 
         friend class Scene::Scene;
@@ -142,17 +142,7 @@ namespace obe::Script
         * \brief Gets the Scene Node of the GameObject (SceneNode that can manipulate the position of all Scene Components)
         * \return A reference to the GameObject's Scene Node
         */
-        Transform::SceneNode* getSceneNode();
-        /**
-        * \brief Gets the TriggerGroup managing Local Triggers of the GameObject
-        * \return A pointer to the TriggerGroup of the GameObject
-        */
-        Triggers::TriggerGroup* getLocalTriggers() const;
-        /**
-        * \brief Enables the use of a LocalTrigger (Internal Use Only)
-        * \param trName Name of the Local Trigger to enable (Init, Update, etc..)
-        */
-        void useLocalTrigger(const std::string& trName);
+        Scene::SceneNode* getSceneNode();
         /**
         * \brief Register a non-local Trigger for the GameObject
         * \param trNsp Namespace where the Trigger to register is
@@ -160,8 +150,8 @@ namespace obe::Script
         * \param trName Name of the Trigger to register
         * \param callAlias Alias (name of the callback) associated with the Trigger
         */
-        void useExternalTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName, const std::string& callAlias = "");
-        void removeExternalTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName) const;
+        void useTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName, const std::string& callAlias = "");
+        void removeTrigger(const std::string& trNsp, const std::string& trGrp, const std::string& trName) const;
         /**
         * \brief Execute a Lua String in the Lua State of the GameObject
         * \param query String to execute

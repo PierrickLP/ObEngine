@@ -1,6 +1,9 @@
 #include <ostream>
 
 #include <Transform/UnitVector.hpp>
+#include <Transform/Matrix2D.hpp>
+#include <Utils/MathUtils.hpp>
+#include <cmath>
 
 namespace obe::Transform
 {
@@ -29,7 +32,7 @@ namespace obe::Transform
 
     void UnitVector::set(const UnitVector& vec)
     {
-	    const UnitVector pVec = vec.to(unit);
+        const UnitVector pVec = vec.to(unit);
         x = pVec.x;
         y = pVec.y;
     }
@@ -42,7 +45,7 @@ namespace obe::Transform
 
     void UnitVector::add(const UnitVector& vec)
     {
-	    const UnitVector pVec = vec.to(unit);
+        const UnitVector pVec = vec.to(unit);
         x += pVec.x;
         y += pVec.y;
     }
@@ -55,13 +58,13 @@ namespace obe::Transform
 
     UnitVector UnitVector::operator+(const UnitVector& add) const
     {
-	    const UnitVector pVec = add.to(unit);
+        const UnitVector pVec = add.to(unit);
         return UnitVector(x + pVec.x, y + pVec.y, unit);
     }
 
     UnitVector& UnitVector::operator+=(const UnitVector& add)
     {
-	    const UnitVector pVec = add.to(unit);
+        const UnitVector pVec = add.to(unit);
         x += pVec.x;
         y += pVec.y;
         return *this;
@@ -69,13 +72,13 @@ namespace obe::Transform
 
     UnitVector UnitVector::operator-(const UnitVector& sub) const
     {
-	    const UnitVector pVec = sub.to(unit);
+        const UnitVector pVec = sub.to(unit);
         return UnitVector(x - pVec.x, y - pVec.y, unit);
     }
 
     UnitVector& UnitVector::operator-=(const UnitVector& sub)
     {
-	    const UnitVector pVec = sub.to(unit);
+        const UnitVector pVec = sub.to(unit);
         x -= pVec.x;
         y -= pVec.y;
         return *this;
@@ -83,13 +86,13 @@ namespace obe::Transform
 
     UnitVector UnitVector::operator*(const UnitVector& mul) const
     {
-	    const UnitVector pVec = mul.to(unit);
+        const UnitVector pVec = mul.to(unit);
         return UnitVector(x * pVec.x, y * pVec.y, unit);
     }
 
     UnitVector& UnitVector::operator*=(const UnitVector& mul)
     {
-	    const UnitVector pVec = mul.to(unit);
+        const UnitVector pVec = mul.to(unit);
         x *= pVec.x;
         y *= pVec.y;
         return *this;
@@ -97,13 +100,13 @@ namespace obe::Transform
 
     UnitVector UnitVector::operator/(const UnitVector& div) const
     {
-	    const UnitVector pVec = div.to(unit);
+        const UnitVector pVec = div.to(unit);
         return UnitVector(x / pVec.x, y / pVec.y, unit);
     }
 
     UnitVector& UnitVector::operator/=(const UnitVector& div)
     {
-	    const UnitVector pVec = div.to(unit);
+        const UnitVector pVec = div.to(unit);
         x /= pVec.x;
         y /= pVec.y;
         return *this;
@@ -164,13 +167,13 @@ namespace obe::Transform
 
     bool UnitVector::operator==(const UnitVector& vec) const
     {
-	    const UnitVector pVec = vec.to(unit);
+        const UnitVector pVec = vec.to(unit);
         return (x == pVec.x && y == pVec.y);
     }
 
     bool UnitVector::operator!=(const UnitVector& vec) const
     {
-	    const UnitVector pVec = vec.to(unit);
+        const UnitVector pVec = vec.to(unit);
         return (x != pVec.x || y != pVec.y);
     }
 
@@ -262,9 +265,21 @@ namespace obe::Transform
         }
     }
 
+    std::tuple<double, double> UnitVector::unpack() const
+    {
+        return std::make_tuple(x, y);
+    }
+
     std::ostream& operator<<(std::ostream& os, const UnitVector& m)
     {
         os << "(" << m.x << ", " << m.y << ")::" << unitsToString(m.unit).c_str();
         return os;
+    }
+
+    UnitVector UnitVector::rotate(double angle, UnitVector zero) const {
+        double rad_angle = Utils::Math::convertToRadian(angle);
+        Matrix2D rot({std::cos(rad_angle), -std::sin(rad_angle), std::sin(rad_angle), std::cos(rad_angle)});
+        UnitVector result = rot.product(*this - zero) + zero;
+        return result;
     }
 }
