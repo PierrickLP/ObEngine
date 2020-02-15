@@ -9,7 +9,8 @@
 
 namespace obe::Transform
 {
-    UnitVector rotatePointAroundCenter(const UnitVector& center, const UnitVector& Around, float angle)
+    UnitVector rotatePointAroundCenter(
+        const UnitVector& center, const UnitVector& Around, float angle)
     {
         double cY = std::cos(angle);
         double sY = std::sin(angle);
@@ -34,7 +35,7 @@ namespace obe::Transform
     void Rect::rotate(float angle, Transform::UnitVector origin)
     {
         const double radAngle = Utils::Math::convertToRadian(-angle);
-            
+
         m_position = rotatePointAroundCenter(origin, m_position, radAngle);
         m_angle += angle;
         if (m_angle < 0 || m_angle > 360)
@@ -52,9 +53,7 @@ namespace obe::Transform
         auto [dx, dy] = (ref.getOffset() * m_size).unpack();
 
         vec.add(UnitVector(
-            (dx * cosAngle - dy * sinAngle) * factor,
-            (dx * sinAngle + dy * cosAngle) * factor
-        ));
+            (dx * cosAngle - dy * sinAngle) * factor, (dx * sinAngle + dy * cosAngle) * factor));
     }
 
     Rect::Rect()
@@ -74,9 +73,8 @@ namespace obe::Transform
         std::vector<sf::Vector2i> drawPoints;
         UnitVector dPos(posX, posY, Transform::Units::ScenePixels);
 
-        const std::vector<Referential> fixDisplayOrder =
-        { Referential::TopLeft, Referential::Top, Referential::TopRight,
-            Referential::Right, Referential::BottomRight,
+        const std::vector<Referential> fixDisplayOrder = { Referential::TopLeft, Referential::Top,
+            Referential::TopRight, Referential::Right, Referential::BottomRight,
             Referential::Bottom, Referential::BottomLeft, Referential::Left };
 
         for (uint8_t i = 0; i < 8; ++i)
@@ -104,19 +102,16 @@ namespace obe::Transform
         Graphics::Utils::drawPoint(vec.x - r, vec.y - r, r, sf::Color::White);
         Graphics::Utils::drawLine(vec.x, vec.y, topPos.x, topPos.y, 2, sf::Color::White);
 
-        Graphics::Utils::drawPolygon(drawPoints, {
-            { "lines", true },
-            { "points", true },
-            { "radius", r },
-            { "point_color", sf::Color::White },
-            { "point_color_0", sf::Color::Red }, { "point_color_1", sf::Color(255, 128, 0) },
-            { "point_color_2", sf::Color::Yellow }, { "point_color_3", sf::Color(128, 255, 0) },
-            { "point_color_4", sf::Color::Green }, { "point_color_5", sf::Color(0, 255, 128) },
-            { "point_color_6", sf::Color::Magenta }, { "point_color_7", sf::Color(0, 128, 255) },
-            { "point_color_8", sf::Color::White }
-        });
+        Graphics::Utils::drawPolygon(drawPoints,
+            { { "lines", true }, { "points", true }, { "radius", r },
+                { "point_color", sf::Color::White }, { "point_color_0", sf::Color::Red },
+                { "point_color_1", sf::Color(255, 128, 0) }, { "point_color_2", sf::Color::Yellow },
+                { "point_color_3", sf::Color(128, 255, 0) }, { "point_color_4", sf::Color::Green },
+                { "point_color_5", sf::Color(0, 255, 128) },
+                { "point_color_6", sf::Color::Magenta },
+                { "point_color_7", sf::Color(0, 128, 255) },
+                { "point_color_8", sf::Color::White } });
     }
-
 
     void Rect::setPointPosition(const UnitVector& position, Referential ref)
     {
@@ -131,7 +126,7 @@ namespace obe::Transform
         {
             if (ref.isOnTopSide())
             {
-                this->setSize({ movedPoint.x - position.x , movedPoint.y - position.y }, ref);
+                this->setSize({ movedPoint.x - position.x, movedPoint.y - position.y }, ref);
             }
             else
             {
@@ -142,14 +137,15 @@ namespace obe::Transform
         {
             if (ref.isOnLeftSide())
             {
-                this->setSize({ movedPoint.x - position.x , m_size.y }, ref);
+                this->setSize({ movedPoint.x - position.x, m_size.y }, ref);
             }
             else
             {
                 this->setSize({ position.x - movedPoint.x, m_size.y }, ref);
             }
         }
-        else // we are on TopSide or BottomSide here, no need to specify the condition
+        else // we are on TopSide or BottomSide here, no need to specify the
+             // condition
         {
             if (ref.isOnTopSide())
             {
@@ -218,4 +214,4 @@ namespace obe::Transform
     {
         return UnitVector(Utils::Math::sign(m_size.x), Utils::Math::sign(m_size.y));
     }
-}
+} // namespace obe::Transform

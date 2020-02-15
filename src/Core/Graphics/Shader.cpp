@@ -20,10 +20,8 @@ namespace obe::Graphics
     }
     void Shader::dump(vili::ComplexNode& target) const
     {
-            
     }
     void Shader::load(vili::ComplexNode& data)
     {
-        
     }
-}
+} // namespace obe::Graphics

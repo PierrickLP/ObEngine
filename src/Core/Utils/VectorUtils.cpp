@@ -18,4 +18,4 @@ namespace obe::Utils::Vector
         }
         return result;
     }
-}
+} // namespace obe::Utils::Vector

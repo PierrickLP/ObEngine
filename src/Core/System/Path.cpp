@@ -35,22 +35,27 @@ namespace obe::System
     {
         if (index < MountedPaths.size())
             return Path(MountedPaths[index].basePath).add(m_path);
-        throw aube::ErrorHandler::Raise("ObEngine.System.Path.UnknownPathAtIndex", {{"index", std::to_string(index)}, {"path", m_path}});
+        throw aube::ErrorHandler::Raise("ObEngine.System.Path.UnknownPathAtIndex",
+            { { "index", std::to_string(index) }, { "path", m_path } });
     }
 
     std::string Path::find(PathType pathType) const
     {
         for (MountablePath& mountedPath : MountedPaths)
         {
-            if ((pathType == PathType::All || pathType == PathType::File) && 
-            Utils::File::fileExists(mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path))
+            if ((pathType == PathType::All || pathType == PathType::File)
+                && Utils::File::fileExists(mountedPath.basePath
+                       + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path))
             {
-                return mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path;
+                return mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "")
+                    + this->m_path;
             }
-            else if ((pathType == PathType::All || pathType == PathType::Directory) &&
-            Utils::File::directoryExists(mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path))
+            else if ((pathType == PathType::All || pathType == PathType::Directory)
+                && Utils::File::directoryExists(mountedPath.basePath
+                       + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path))
             {
-                return mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "") + this->m_path;
+                return mountedPath.basePath + ((!mountedPath.basePath.empty()) ? "/" : "")
+                    + this->m_path;
             }
         }
         return "";
@@ -74,12 +79,9 @@ namespace obe::System
 
     void Path::orderMountedPaths()
     {
-        std::sort(
-            MountedPaths.begin(),
-            MountedPaths.end(),
+        std::sort(MountedPaths.begin(), MountedPaths.end(),
             [](const MountablePath& first, const MountablePath& second) {
                 return first.priority > second.priority;
-            }
-        );
+            });
     }
-}
+} // namespace obe::System

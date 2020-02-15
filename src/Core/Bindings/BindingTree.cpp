@@ -12,9 +12,7 @@ namespace obe::Bindings
 {
     std::function<void(kaguya::State*)> InitTreeNodeAsTable(const std::string& nodeName)
     {
-        return [nodeName](kaguya::State* lua) {
-            (*lua)(nodeName + " = {};");
-        };
+        return [nodeName](kaguya::State* lua) { (*lua)(nodeName + " = {};"); };
     }
 
     bool checkIfLuaElementExists(kaguya::State* lua, const std::string& path)
@@ -23,20 +21,24 @@ namespace obe::Bindings
         return exists;
     }
 
-    BindingTree::BindingTree(BindingTree* parent, const std::string& id, std::function<void(kaguya::State*)> lib) : Identifiable(id)
+    BindingTree::BindingTree(
+        BindingTree* parent, const std::string& id, std::function<void(kaguya::State*)> lib)
+        : Identifiable(id)
     {
         m_parent = parent;
         m_lib = lib;
         m_hasLib = true;
     }
 
-    BindingTree::BindingTree(BindingTree* parent, const std::string& id) : Identifiable(id)
+    BindingTree::BindingTree(BindingTree* parent, const std::string& id)
+        : Identifiable(id)
     {
         m_parent = parent;
         m_hasLib = false;
     }
 
-    BindingTree::BindingTree(const std::string& id) : Identifiable(id)
+    BindingTree::BindingTree(const std::string& id)
+        : Identifiable(id)
     {
         m_parent = nullptr;
         m_hasLib = false;
@@ -72,7 +74,8 @@ namespace obe::Bindings
             if (tree->getId() == id)
                 return *tree.get();
         }
-        throw aube::ErrorHandler::Raise("ObEngine.Bindings.BindingTree.ChildNotFound", { {"id", getNodePath()}, {"child", id}, {"function", "operator[]"} });
+        throw aube::ErrorHandler::Raise("ObEngine.Bindings.BindingTree.ChildNotFound",
+            { { "id", getNodePath() }, { "child", id }, { "function", "operator[]" } });
     }
 
     BindingTree& BindingTree::add(const std::string& id, std::function<void(kaguya::State*)> lib)
@@ -103,7 +106,8 @@ namespace obe::Bindings
         }
         else
         {
-            throw aube::ErrorHandler::Raise("ObEngine.Bindings.BindingTree.ChildNotFound", { {"id", this->getNodePath() }, {"child", path[0] }, { "function", "walkTo" } });
+            throw aube::ErrorHandler::Raise("ObEngine.Bindings.BindingTree.ChildNotFound",
+                { { "id", this->getNodePath() }, { "child", path[0] }, { "function", "walkTo" } });
         }
         return *this;
     }
@@ -140,6 +144,7 @@ namespace obe::Bindings
         if (!elementAlreadyExists && m_hasLib)
         {
             Debug::Log->debug("<BindingTree> Loading Lua Lib : {0}", this->getNodePath());
+            Debug::Log->flush();
             (*lua)("table.insert(LuaCore.libList, '" + this->getNodePath() + "');");
             m_lib(lua);
         }
@@ -151,4 +156,4 @@ namespace obe::Bindings
             }
         }
     }
-}
+} // namespace obe::Bindings

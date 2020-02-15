@@ -15,7 +15,8 @@ namespace obe::Scene
         m_camera->h = m_size.y;
     }
 
-    void Camera::setPosition(const Transform::UnitVector& position, const Transform::Referential ref)
+    void Camera::setPosition(
+        const Transform::UnitVector& position, const Transform::Referential ref)
     {
         Rect::setPosition(position, ref);
         this->apply();
@@ -29,12 +30,10 @@ namespace obe::Scene
 
     void Camera::setSize(const double pSize, const Transform::Referential ref)
     {
-        Rect::setSize(
-            Transform::UnitVector(
-                pSize * 2 * (Transform::UnitVector::Screen.w / Transform::UnitVector::Screen.h), 
-                pSize * 2, m_size.unit
-            )
-        , ref);
+        Rect::setSize(Transform::UnitVector(pSize * 2
+                              * (Transform::UnitVector::Screen.w / Transform::UnitVector::Screen.h),
+                          pSize * 2, m_size.unit),
+            ref);
         this->apply();
     }
 
@@ -63,4 +62,4 @@ namespace obe::Scene
     {
         return m_size;
     }
-}
+} // namespace obe::Scene

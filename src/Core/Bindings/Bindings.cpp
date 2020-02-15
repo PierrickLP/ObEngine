@@ -3,16 +3,17 @@
 
 // ObEngineCore headers
 #include <Bindings/AnimationBindings.hpp>
-#include <Bindings/CollisionBindings.hpp>
+#include <Bindings/AudioBindings.hpp>
 #include <Bindings/CPPBindings.hpp>
+#include <Bindings/CollisionBindings.hpp>
+#include <Bindings/ConfigBindings.hpp>
 #include <Bindings/DebugBindings.hpp>
 #include <Bindings/GraphicsBindings.hpp>
 #include <Bindings/InputBindings.hpp>
 #include <Bindings/NetworkBindings.hpp>
+#include <Bindings/SFMLBindings.hpp>
 #include <Bindings/SceneBindings.hpp>
 #include <Bindings/ScriptBindings.hpp>
-#include <Bindings/SFMLBindings.hpp>
-#include <Bindings/SoundBindings.hpp>
 #include <Bindings/SystemBindings.hpp>
 #include <Bindings/TimeBindings.hpp>
 #include <Bindings/TransformBindings.hpp>
@@ -42,17 +43,22 @@ namespace obe::Bindings
         // obe Binding
         BindTree.add("obe", InitTreeNodeAsTable("obe"));
         BindTree["obe"]
-        // Animation
+            // Animation
             .add("AnimationGroup", &AnimationBindings::LoadAnimationGroup)
             .add("Animation", &AnimationBindings::LoadAnimation)
             .add("Animator", &AnimationBindings::LoadAnimator)
-        // Collision
+            // Audio
+            .add("AudioManager", &AudioBindings::LoadAudioManager)
+            .add("Sound", &AudioBindings::LoadSound)
+            // Collision
             .add("PolygonalCollider", &CollisionBindings::LoadPolygonalCollider)
             .add("Trajectory", &CollisionBindings::LoadTrajectory)
             .add("TrajectoryNode", &CollisionBindings::LoadTrajectoryNode)
-        //Debug
+            // Config
+            .add("Git", &ConfigBindings::LoadGit)
+            // Debug
             .add("Log", &DebugBindings::LoadLog)
-        // Graphics
+            // Graphics
             .add("Canvas", &GraphicsBindings::LoadCanvas)
             .add("Color", &GraphicsBindings::LoadColor)
             .add("LevelSprite", &GraphicsBindings::LoadLevelSprite)
@@ -60,7 +66,7 @@ namespace obe::Bindings
             .add("ResourceManager", &GraphicsBindings::LoadResourceManager)
             .add("Shader", &GraphicsBindings::LoadShader)
             .add("Utils", &GraphicsBindings::LoadGraphicsUtils)
-        // Input
+            // Input
             .add("InputAction", &InputBindings::LoadInputAction)
             .add("InputActionEvent", &InputBindings::LoadInputActionEvent)
             .add("InputButton", &InputBindings::LoadInputButton)
@@ -69,18 +75,15 @@ namespace obe::Bindings
             .add("InputCondition", &InputBindings::LoadInputCondition)
             .add("InputFunctions", &InputBindings::LoadInputFunctions)
             .add("InputManager", &InputBindings::LoadInputManager)
-        //Network
+            // Network
             .add("TcpServer", &NetworkBindings::LoadTcpServer)
-        // Scene
+            // Scene
             .add("Camera", &SceneBindings::LoadCamera)
             .add("Scene", &SceneBindings::LoadScene)
             .add("SceneNode", &SceneBindings::LoadSceneNode)
-        // Script
+            // Script
             .add("Script", &ScriptBindings::LoadGameObject)
-        // Sound
-            .add("Music", &SoundBindings::LoadMusic)
-            .add("Sound", &SoundBindings::LoadSound)
-        // System
+            // System
             .add("Constants", &SystemBindings::LoadSystemConstants)
             .add("MountablePath", &SystemBindings::LoadMountablePath)
             .add("Package", &SystemBindings::LoadPackage)
@@ -88,13 +91,13 @@ namespace obe::Bindings
             .add("Cursor", &SystemBindings::LoadSCursor)
             .add("Workspace", &SystemBindings::LoadWorkspace)
             .add("Window", &SystemBindings::LoadWindow)
-        // Time
+            // Time
             .add("Chronometer", &TimeBindings::LoadChronometer)
             .add("FPSCounter", &TimeBindings::LoadFPSCounter)
             .add("FramerateManager", &TimeBindings::LoadFramerateManager)
             .add("TimeCheck", &TimeBindings::LoadTimeCheck)
             .add("TimeUtils", &TimeBindings::LoadTimeUtils)
-        // Transform
+            // Transform
             .add("Movable", &TransformBindings::LoadMovable)
             .add("Polygon", &TransformBindings::LoadPolygon)
             .add("ProtectedUnitVector", &TransformBindings::LoadProtectedUnitVector)
@@ -103,17 +106,17 @@ namespace obe::Bindings
             .add("UnitBasedObject", &TransformBindings::LoadUnitBasedObject)
             .add("Units", &TransformBindings::LoadUnits)
             .add("UnitVector", &TransformBindings::LoadUnitVector)
-        // Triggers
+            // Triggers
             .add("Trigger", &TriggersBindings::LoadTrigger)
             .add("TriggerDatabase", &TriggersBindings::LoadTriggerDatabase)
             .add("TriggerDelay", &TriggersBindings::LoadTriggerDelay)
             .add("TriggerGroup", &TriggersBindings::LoadTriggerGroup)
-        // Types
+            // Types
             .add("Identifiable", &TypesBindings::LoadIdentifiable)
             .add("Selectable", &TypesBindings::LoadSelectable)
             .add("Serializable", &TypesBindings::LoadSerializable)
             .add("Togglable", &TypesBindings::LoadTogglable)
-        // Utils
+            // Utils
             .add("ExecUtils", &UtilsBindings::LoadExecUtils)
             .add("FileUtils", &UtilsBindings::LoadFileUtils)
             .add("MathUtils", &UtilsBindings::LoadMathUtils)
@@ -153,12 +156,14 @@ namespace obe::Bindings
 
     void IndexPluginsBindings()
     {
-        Debug::Log->error("INDEXING PLUGINS BINDINGS");
+        Debug::Log->info("Indexing Plugins...");
         for (auto& plugin : System::Plugins)
         {
-            Debug::Log->error("INDEXING PLUGINS BINDING {} ({})", plugin->getId(), plugin->hasOnLoadBindings());
+            Debug::Log->info("Indexing plugin bindings {} ({})", plugin->getId(),
+                plugin->hasOnLoadBindings());
             if (plugin->hasOnLoadBindings())
-                BindTree.add(plugin->getId(), [&plugin](kaguya::State* lua) { plugin->onLoadBindings(lua); });
+                BindTree.add(plugin->getId(),
+                    [&plugin](kaguya::State* lua) { plugin->onLoadBindings(lua); });
         }
     }
-}
+} // namespace obe::Bindings

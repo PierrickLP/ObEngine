@@ -17,4 +17,4 @@ namespace obe::Input
     {
         return m_condition;
     }
-}
+} // namespace obe::Input

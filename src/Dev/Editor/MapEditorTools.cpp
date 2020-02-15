@@ -18,7 +18,8 @@ namespace obe::Editor
     {
         System::Path("Data/Fonts/arial.ttf").load(System::Loaders::fontLoader, m_font);
         m_renderer.create(246, 246);
-        System::Path("Sprites/Others/folder.png").load(System::Loaders::textureLoader, m_folderTexture);
+        System::Path("Sprites/Others/folder.png")
+            .load(System::Loaders::textureLoader, m_folderTexture);
     }
 
     sf::Texture* Thumbnailer::GetSpriteThumbnail(const std::string& path)
@@ -28,19 +29,16 @@ namespace obe::Editor
         if (m_instance->m_cache.find(path) != m_instance->m_cache.end())
             return m_instance->m_cache[path];
         sf::Texture sprTexture;
-        System::Path("Sprites/LevelSprites/" + path).load(System::Loaders::textureLoader, sprTexture);
+        System::Path("Sprites/LevelSprites/" + path)
+            .load(System::Loaders::textureLoader, sprTexture);
         sf::Sprite sprite;
         sprite.setTexture(sprTexture);
         const double texW = sprTexture.getSize().x;
         const double texH = sprTexture.getSize().y;
         const double scale = (texW >= texH) ? m_size / texW : m_size / texH;
         sprite.setScale(scale, scale);
-        sprite.setPosition(
-            sf::Vector2f(
-                (m_size / 2) - (sprite.getGlobalBounds().width / 2), 
-                (m_size / 2) - (sprite.getGlobalBounds().height / 2)
-            )
-        );
+        sprite.setPosition(sf::Vector2f((m_size / 2) - (sprite.getGlobalBounds().width / 2),
+            (m_size / 2) - (sprite.getGlobalBounds().height / 2)));
         m_instance->m_renderer.clear(sf::Color(0, 0, 0, 0));
         sf::RectangleShape sprRec(sf::Vector2f(m_size, m_size));
         sprRec.setFillColor(sf::Color(100, 100, 100));
@@ -88,10 +86,8 @@ namespace obe::Editor
         return m_instance->m_cache[path];
     }
 
-    void buildObjectTab(Scene::Scene& scene, 
-        tgui::Panel::Ptr& objectPanel, 
-        tgui::Panel::Ptr& requiresPanel, 
-        tgui::Theme& baseTheme, 
+    void buildObjectTab(Scene::Scene& scene, tgui::Panel::Ptr& objectPanel,
+        tgui::Panel::Ptr& requiresPanel, tgui::Theme& baseTheme,
         tgui::Scrollbar::Ptr objectsScrollbar)
     {
         std::vector<std::string> allGameObjects;
@@ -105,8 +101,8 @@ namespace obe::Editor
         unsigned int xpos;
         unsigned int ypos = xpos = 0;
 
-        const auto getBtnPos = [&btnSize, &btnOff, &xOff, &panelWidth, &yOff, &maxElementsPerRow](unsigned int& index)
-        {
+        const auto getBtnPos = [&btnSize, &btnOff, &xOff, &panelWidth, &yOff, &maxElementsPerRow](
+                                   unsigned int& index) {
             unsigned int ixPos = (index % maxElementsPerRow) * (btnSize + btnOff) + xOff;
             unsigned int iyPos = index / maxElementsPerRow * (btnSize + btnOff) + yOff;
             return std::pair<unsigned int, unsigned int>(ixPos, iyPos);
@@ -123,8 +119,7 @@ namespace obe::Editor
             currentObj->setPosition(xpos, ypos);
             currentObj->setSize(btnSize, btnSize);
             objectPanel->add(currentObj);
-            currentObj->connect("pressed", [&scene, &requiresPanel, &baseTheme, currentObjName]()
-            {
+            currentObj->connect("pressed", [&scene, &requiresPanel, &baseTheme, currentObjName]() {
                 buildRequiresObjectTab(scene, requiresPanel, baseTheme, currentObjName);
             });
         }
@@ -132,10 +127,13 @@ namespace obe::Editor
         objectsScrollbar->setMaximum(ypos + btnSize + yOff + 30);
     }
 
-    void buildRequiresObjectTab(Scene::Scene& scene, tgui::Panel::Ptr& requiresPanel, tgui::Theme& baseTheme, const std::string& objName)
+    void buildRequiresObjectTab(Scene::Scene& scene, tgui::Panel::Ptr& requiresPanel,
+        tgui::Theme& baseTheme, const std::string& objName)
     {
-        vili::ComplexNode* requires = Script::GameObjectDatabase::GetRequirementsForGameObject(objName);
-        const std::string key = Utils::String::getRandomKey(Utils::String::Alphabet + Utils::String::Numbers, 8);
+        vili::ComplexNode* requires
+            = Script::GameObjectDatabase::GetRequirementsForGameObject(objName);
+        const std::string key
+            = Utils::String::getRandomKey(Utils::String::Alphabet + Utils::String::Numbers, 8);
         vili::ComplexNode* requireCopy = new vili::ComplexNode(key);
         if (requires != nullptr)
         {
@@ -168,7 +166,6 @@ namespace obe::Editor
                 currentRequirementLabel->setText(requireItem);
                 content->add(currentRequirementLabel, requireItem + "_label");
 
-
                 if (requireInput.at(requireItem).contains(vili::NodeType::DataNode, "type"))
                 {
                     tgui::EditBox::Ptr currentRequirementInput = tgui::EditBox::create();
@@ -178,7 +175,8 @@ namespace obe::Editor
                     content->add(currentRequirementInput, requireItem + "_input");
                     requireEditBoxes[requireItem] = currentRequirementInput;
                 }
-                else if (requireInput.at(requireItem).contains(vili::NodeType::ArrayNode, "choices"))
+                else if (requireInput.at(requireItem)
+                             .contains(vili::NodeType::ArrayNode, "choices"))
                 {
                     tgui::ComboBox::Ptr currentRequirementList = tgui::ComboBox::create();
                     currentRequirementList->setSize(200, 32);
@@ -187,8 +185,12 @@ namespace obe::Editor
                     currentRequirementList->setItemsToDisplay(4);
                     currentRequirementList->setRenderer(baseTheme.getRenderer("ComboBox"));
                     content->add(currentRequirementList, requireItem + "_input");
-                    for (int reqI = 0; reqI < requireInput.at(requireItem).getArrayNode("choices").size(); reqI++)
-                        currentRequirementList->addItem(requireInput.at(requireItem).getArrayNode("choices").get(reqI).get<std::string>());
+                    for (int reqI = 0;
+                         reqI < requireInput.at(requireItem).getArrayNode("choices").size(); reqI++)
+                        currentRequirementList->addItem(requireInput.at(requireItem)
+                                                            .getArrayNode("choices")
+                                                            .get(reqI)
+                                                            .get<std::string>());
                     currentRequirementList->setSelectedItem(currentRequirementList->getItems()[0]);
                     requireComboBoxes[requireItem] = currentRequirementList;
                 }
@@ -200,21 +202,25 @@ namespace obe::Editor
             createObjectButton->setPosition(10, "100% - 60");
             createObjectButton->setSize("100% - 20", 50);
             createObjectButton->setRenderer(baseTheme.getRenderer("Button"));
-            createObjectButton->setTextSize(22);
+            createObjectButton->setTextSize(20);
             createObjectButton->setText("Create Object");
 
-            createObjectButton->connect("pressed", [objName, requireComboBoxes, requireEditBoxes, key, requireCopy, &scene]() mutable
-            {
-                for (auto& cReq : requireComboBoxes)
-                {
-                    requireCopy->at("Input", cReq.first).createDataNode("value", cReq.second->getSelectedItem());
-                }
-                for (auto& cReq : requireEditBoxes)
-                {
-                    requireCopy->at("Input", cReq.first).createDataNode("value", cReq.second->getText());
-                }
-                buildObjectThroughRequire(scene, objName, requireCopy);
-            });
+            createObjectButton->connect("pressed",
+                [objName, requireComboBoxes, requireEditBoxes, key, requireCopy, &scene,
+                    &requiresPanel]() mutable {
+                    for (auto& cReq : requireComboBoxes)
+                    {
+                        requireCopy->at("Input", cReq.first)
+                            .createDataNode("value", cReq.second->getSelectedItem());
+                    }
+                    for (auto& cReq : requireEditBoxes)
+                    {
+                        requireCopy->at("Input", cReq.first)
+                            .createDataNode("value", cReq.second->getText());
+                    }
+                    buildObjectThroughRequire(scene, objName, requireCopy);
+                    requiresPanel->hide();
+                });
 
             requiresPanel->add(createObjectButton);
         }
@@ -225,13 +231,14 @@ namespace obe::Editor
         }
     }
 
-    void buildObjectThroughRequire(Scene::Scene& scene, const std::string& objName, vili::ComplexNode* requires)
+    void buildObjectThroughRequire(
+        Scene::Scene& scene, const std::string& objName, vili::ComplexNode* requires)
     {
-        const std::string key = Utils::String::getRandomKey(Utils::String::Alphabet + Utils::String::Numbers, 8);
+        const std::string key
+            = Utils::String::getRandomKey(Utils::String::Alphabet + Utils::String::Numbers, 8);
         Script::GameObject* newGameObject = scene.createGameObject(objName, key);
-            
-        requires->at("Output").walk([](vili::NodeIterator& node)
-        {
+
+        requires->at("Output").walk([](vili::NodeIterator& node) {
             for (vili::LinkNode* link : node->getAll<vili::LinkNode>())
             {
                 node->createDataNode("__linkroot__", "Input");
@@ -245,10 +252,8 @@ namespace obe::Editor
         newGameObject->initialize();
     }
 
-    void loadSpriteFolder(Scene::Scene& scene, 
-        tgui::Panel::Ptr spritesPanel, 
-        tgui::Label::Ptr spritesCatLabel, 
-        const std::string& path, 
+    void loadSpriteFolder(Scene::Scene& scene, tgui::Panel::Ptr spritesPanel,
+        tgui::Label::Ptr spritesCatLabel, const std::string& path,
         tgui::Scrollbar::Ptr spritesScrollbar)
     {
         spritesPanel->removeAllWidgets();
@@ -256,19 +261,21 @@ namespace obe::Editor
 
         std::vector<std::string> fileList;
         std::vector<std::string> folderList;
-        System::Path("Sprites/LevelSprites" + path).loadAll(System::Loaders::dirPathLoader, folderList);
-        System::Path("Sprites/LevelSprites" + path).loadAll(System::Loaders::filePathLoader, fileList);
+        System::Path("Sprites/LevelSprites" + path)
+            .loadAll(System::Loaders::dirPathLoader, folderList);
+        System::Path("Sprites/LevelSprites" + path)
+            .loadAll(System::Loaders::filePathLoader, fileList);
 
         const int sprSize = spritesPanel->getSize().x * 0.115;
         const int panelWidth = spritesPanel->getSize().x;
-            
+
         const int sprOff = 10;
         const int xOff = 15;
         const int yOff = 70;
         unsigned int maxElementsPerRow = float(panelWidth) / (float(sprSize) + float(sprOff));
         unsigned int elemIndex = 0;
-        const auto getSpritePos = [&sprSize, &sprOff, &xOff, &panelWidth, &yOff, &maxElementsPerRow](unsigned int& index)
-        {
+        const auto getSpritePos = [&sprSize, &sprOff, &xOff, &panelWidth, &yOff,
+                                      &maxElementsPerRow](unsigned int& index) {
             unsigned int ixPos = (index % maxElementsPerRow) * (sprSize + sprOff) + xOff;
             unsigned int iyPos = index / maxElementsPerRow * (sprSize + sprOff) + yOff;
             index++;
@@ -287,11 +294,12 @@ namespace obe::Editor
         backButton->setSize(sprSize, sprSize);
         backButton->setPosition(xpos, ypos);
 
-        backButton->connect("pressed", [spritesPanel, spritesCatLabel, path, spritesScrollbar, &scene]
-        {
-            std::vector<std::string> splittedPath = Utils::String::split(path, "/");
-            loadSpriteFolder(scene, spritesPanel, spritesCatLabel, "/" + Utils::Vector::join(splittedPath, "/", 0, 1), spritesScrollbar);
-        });
+        backButton->connect(
+            "pressed", [spritesPanel, spritesCatLabel, path, spritesScrollbar, &scene] {
+                std::vector<std::string> splittedPath = Utils::String::split(path, "/");
+                loadSpriteFolder(scene, spritesPanel, spritesCatLabel,
+                    "/" + Utils::Vector::join(splittedPath, "/", 0, 1), spritesScrollbar);
+            });
 
         for (std::string element : folderList)
         {
@@ -300,21 +308,22 @@ namespace obe::Editor
             spritesPanel->add(currentFolder, "LS_FOLDER_" + element);
             currentFolder->setSize(sprSize, sprSize);
             currentFolder->setPosition(xpos, ypos);
-            currentFolder->getRenderer()->setTexture(*Thumbnailer::GetFolderThumbnail(path + "/" + element));
-            currentFolder->connect("pressed", [spritesPanel, spritesCatLabel, path, element, spritesScrollbar, &scene]()
-            {
-                loadSpriteFolder(scene, spritesPanel, spritesCatLabel, path + "/" + element, spritesScrollbar);
-            });
+            currentFolder->getRenderer()->setTexture(
+                *Thumbnailer::GetFolderThumbnail(path + "/" + element));
+            currentFolder->connect("pressed",
+                [spritesPanel, spritesCatLabel, path, element, spritesScrollbar, &scene]() {
+                    loadSpriteFolder(scene, spritesPanel, spritesCatLabel, path + "/" + element,
+                        spritesScrollbar);
+                });
         }
 
         for (std::string element : fileList)
         {
             sf::Texture textureLoadChecker;
-            System::Path("Sprites/LevelSprites").add(path).add(element).load(
-                System::Loaders::textureLoader,
-                textureLoadChecker,
-                true
-            );
+            System::Path("Sprites/LevelSprites")
+                .add(path)
+                .add(element)
+                .load(System::Loaders::textureLoader, textureLoadChecker, true);
             if (textureLoadChecker.getSize().x != 0)
             {
                 std::tie(xpos, ypos) = getSpritePos(elemIndex);
@@ -322,9 +331,11 @@ namespace obe::Editor
                 tgui::Button::Ptr currentSprite = tgui::Button::create();
                 spritesPanel->add(currentSprite, "LS_FILE_" + element);
                 currentSprite->setPosition(xpos, ypos);
-                currentSprite->getRenderer()->setTexture(*Thumbnailer::GetSpriteThumbnail(path + "/" + element));
+                currentSprite->getRenderer()->setTexture(
+                    *Thumbnailer::GetSpriteThumbnail(path + "/" + element));
                 currentSprite->setSize(sprSize, sprSize);
-                currentSprite->connect("pressed", [path, element, &scene] { addSpriteToScene(scene, path + "/" + element); });
+                currentSprite->connect("pressed",
+                    [path, element, &scene] { addSpriteToScene(scene, path + "/" + element); });
             }
         }
 
@@ -340,13 +351,15 @@ namespace obe::Editor
             testId = "sprite" + std::to_string(scene.getLevelSpriteAmount() + i++);
         }
         Graphics::LevelSprite* sprToAdd = scene.createLevelSprite(testId);
-        const Transform::UnitVector pixelCamera = scene.getCamera()->getPosition().to<Transform::Units::ScenePixels>();
+        const Transform::UnitVector pixelCamera
+            = scene.getCamera()->getPosition().to<Transform::Units::ScenePixels>();
         sprToAdd->loadTexture("Sprites/LevelSprites/" + spritePath);
-        sprToAdd->getPosition() += Transform::UnitVector(960 + pixelCamera.x, 540 + pixelCamera.y, Transform::Units::ScenePixels);
+        sprToAdd->setPosition(pixelCamera);
+
         sprToAdd->setRotation(0);
-        //ADD SPRITE SIZE
+        // ADD SPRITE SIZE
         sprToAdd->useTextureSize();
         sprToAdd->setLayer(1);
         sprToAdd->setZDepth(1);
     }
-}
+} // namespace obe::Editor

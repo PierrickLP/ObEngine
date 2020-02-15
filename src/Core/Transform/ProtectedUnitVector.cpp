@@ -13,4 +13,4 @@ namespace obe::Transform
         this->y = y;
         this->unit = unit;
     }
-}
+} // namespace obe::Transform

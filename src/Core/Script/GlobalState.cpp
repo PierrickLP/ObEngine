@@ -31,4 +31,4 @@ namespace obe::Script
     {
         ScriptEngine["LuaCore"]["ExecuteStringOnEnv"](string, envIndex);
     }
-}
+} // namespace obe::Script

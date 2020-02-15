@@ -24,10 +24,8 @@ namespace obe::Graphics::Utils // <REVISION> Move to Utils/ ?
 
     void drawLine(int x1, int y1, int x2, int y2, int thickness, sf::Color color)
     {
-        sf::Vertex line[] = {
-            sf::Vertex(sf::Vector2f(x1, y1), color),
-            sf::Vertex(sf::Vector2f(x2, y2), color)
-        };
+        sf::Vertex line[]
+            = { sf::Vertex(sf::Vector2f(x1, y1), color), sf::Vertex(sf::Vector2f(x2, y2), color) };
         System::MainWindow.draw(line, thickness, sf::Lines);
     }
 
@@ -48,7 +46,8 @@ namespace obe::Graphics::Utils // <REVISION> Move to Utils/ ?
             const sf::Vector2i& point2 = points[(i == points.size() - 1) ? 0 : i + 1];
             if (drawLines)
             {
-                const sf::Color currentLineColor = findOptionOrDefault(options, ("line_color_" + std::to_string(i)).c_str(), lineColor);
+                const sf::Color currentLineColor = findOptionOrDefault(
+                    options, ("line_color_" + std::to_string(i)).c_str(), lineColor);
                 drawLine(point1.x, point1.y, point2.x, point2.y, 2, currentLineColor);
             }
         }
@@ -57,7 +56,8 @@ namespace obe::Graphics::Utils // <REVISION> Move to Utils/ ?
             const sf::Vector2i& point1 = points[i];
             if (drawPoints)
             {
-                const sf::Color currentPointColor = findOptionOrDefault(options, ("point_color_" + std::to_string(i)).c_str(), pointColor);
+                const sf::Color currentPointColor = findOptionOrDefault(
+                    options, ("point_color_" + std::to_string(i)).c_str(), pointColor);
                 polyPt.setFillColor(currentPointColor);
                 polyPt.setPosition(point1.x - pointRadius, point1.y - pointRadius);
                 System::MainWindow.draw(polyPt);
@@ -66,4 +66,4 @@ namespace obe::Graphics::Utils // <REVISION> Move to Utils/ ?
     }
 
     sf::Color ClearColor = sf::Color::Black; // <REVISION> Move to Window.hpp ?
-}
+} // namespace obe::Graphics::Utils

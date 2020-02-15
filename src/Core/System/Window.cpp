@@ -173,7 +173,7 @@ namespace obe::System
 
     void Window::setTitle(const std::string& title)
     {
-        
+
         if (!m_docked)
             m_window.setTitle(title);
     }
@@ -220,4 +220,4 @@ namespace obe::System
             m_surface.create(width, height);
         this->setView(sf::View(sf::FloatRect(0, 0, width, height)));
     }
-}
+} // namespace obe::System
