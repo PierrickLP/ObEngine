@@ -1,34 +1,49 @@
 #include <set>
 
+#include <Input/Exceptions.hpp>
 #include <Input/InputManager.hpp>
-#include <Input/KeyList.hpp>
-#include <Triggers/TriggerDatabase.hpp>
+#include <Triggers/TriggerManager.hpp>
+#include <Utils/StringUtils.hpp>
 #include <Utils/VectorUtils.hpp>
 
 namespace obe::Input
 {
+    bool updateOrCleanMonitor(Triggers::TriggerGroupPtr triggers,
+        const std::weak_ptr<InputButtonMonitor>& element)
+    {
+        if (auto monitor = element.lock())
+        {
+            monitor->update(triggers);
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     bool InputManager::isActionCurrentlyInUse(const std::string& actionId)
     {
-        for (const auto& actionPtr : m_currentActions)
+        for (const auto& action : m_currentActions)
         {
-            if (const auto& action = actionPtr.lock())
+            if (action->getId() == actionId)
             {
-                if (action->getId() == actionId)
-                {
-                    return true;
-                }
+                return true;
             }
         }
         return false;
     }
 
     InputManager::InputManager()
-        : Registrable("InputManager")
-        , Togglable(true)
-        , m_actionTriggers(
-              Triggers::TriggerDatabase::GetInstance().createTriggerGroup("Global", "Actions"),
-              Triggers::TriggerGroupPtrRemover)
+        : Togglable(true)
     {
+    }
+
+    void InputManager::init(Triggers::TriggerManager& triggers)
+    {
+        t_actions = triggers.createTriggerGroup("Event", "Actions");
+        this->createInputMap();
+        this->createTriggerGroups(triggers);
     }
 
     InputAction& InputManager::getAction(const std::string& actionId)
@@ -40,10 +55,13 @@ namespace obe::Input
                 return *action.get();
             }
         }
-        aube::ErrorHandler::Warn(
-            "ObEngine.Input.InputManager.UnknownAction", { { "action", actionId } });
-        m_allActions.push_back(std::make_unique<InputAction>(m_actionTriggers.get(), actionId));
-        return *m_allActions.back().get();
+        std::vector<std::string> actionIds;
+        actionIds.reserve(m_allActions.size());
+        for (auto& action : m_allActions)
+        {
+            actionIds.push_back(action->getId());
+        }
+        throw Exceptions::UnknownInputAction(actionId, actionIds, EXC_INFO);
     }
 
     void InputManager::update()
@@ -51,13 +69,42 @@ namespace obe::Input
         if (m_enabled)
         {
             auto actionBuffer = m_currentActions;
-            for (auto actionPtr : actionBuffer)
+            for (auto action : actionBuffer)
             {
-                if (auto action = actionPtr.lock())
+
+                action->update();
+            }
+            if (m_refresh)
+            {
+                bool noRefresh = true;
+                for (auto& [_, input] : m_inputs)
                 {
-                    Debug::Log->trace("Updating action {}", action->getId());
-                    action->update();
+
+                    if (input->isPressed())
+                    {
+
+                        noRefresh = false;
+                        break;
+                    }
                 }
+                for (const auto& monitorPtr : m_monitors)
+                {
+                    if (const auto& monitor = monitorPtr.lock())
+                    {
+                        if (monitor->getButton().isPressed())
+                        {
+                            noRefresh = false;
+                            break;
+                        }
+                    }
+                }
+                m_refresh = !noRefresh;
+                m_monitors.erase(
+                    std::remove_if(m_monitors.begin(), m_monitors.end(),
+                        [this](const std::weak_ptr<InputButtonMonitor>& element) {
+                            return updateOrCleanMonitor(t_inputs, element);
+                        }),
+                    m_monitors.end());
             }
         }
     }
@@ -78,47 +125,61 @@ namespace obe::Input
     {
         m_currentActions.clear();
         for (auto& action : m_allActions)
-            m_actionTriggers->removeTrigger(action->getId());
+            t_actions->remove(action->getId());
         m_allActions.clear();
     }
 
-    void InputManager::configure(vili::ComplexNode& config)
+    void InputManager::configure(vili::node& config)
     {
         std::vector<std::string> alreadyInFile;
-        for (vili::ComplexNode* context : config.getAll<vili::ComplexNode>())
+        for (auto& [contextName, context] : config.items())
         {
-            for (vili::Node* action : context->getAll())
+            for (auto& [actionName, condition] : context.items())
             {
-                if (!this->actionExists(action->getId()))
+                if (!this->actionExists(actionName))
                 {
                     m_allActions.push_back(
-                        std::make_unique<InputAction>(m_actionTriggers.get(), action->getId()));
+                        std::make_unique<InputAction>(t_actions.get(), actionName));
                 }
-                else if (!Utils::Vector::contains(action->getId(), alreadyInFile))
+                else if (!Utils::Vector::contains(actionName, alreadyInFile))
                 {
-                    this->getAction(action->getId()).clearConditions();
+                    this->getAction(actionName).clearConditions();
                 }
-                auto inputCondition = [](InputManager* inputManager, vili::Node* action,
-                                          vili::DataNode* condition) {
-                    InputCondition actionCondition;
-                    actionCondition.setCombinationCode(condition->get<std::string>());
-                    Debug::Log->debug("<InputManager> Associated Key '{0}' for Action '{1}'",
-                        condition->get<std::string>(), action->getId());
-                    inputManager->getAction(action->getId()).addCondition(actionCondition);
-                };
-                if (action->getType() == vili::NodeType::DataNode)
+                auto inputCondition
+                    = [this](InputManager* inputManager, const std::string& action,
+                          vili::node& condition) {
+                          InputCondition actionCondition;
+                          InputCombination combination;
+                          try
+                          {
+                              combination = this->makeCombination(condition);
+                          }
+                          catch (const Exception& e)
+                          {
+                              throw Exceptions::InvalidInputCombinationCode(
+                                  action, condition, EXC_INFO)
+                                  .nest(e);
+                          }
+
+                          actionCondition.setCombination(combination);
+                          Debug::Log->debug(
+                              "<InputManager> Associated Key '{0}' for Action '{1}'",
+                              condition, action);
+                          inputManager->getAction(action).addCondition(actionCondition);
+                      };
+                if (condition.is_primitive())
                 {
-                    inputCondition(this, action, static_cast<vili::DataNode*>(action));
+                    inputCondition(this, actionName, condition);
                 }
-                else if (action->getType() == vili::NodeType::ArrayNode)
+                else if (condition.is<vili::array>())
                 {
-                    for (vili::DataNode* condition : *static_cast<vili::ArrayNode*>(action))
+                    for (vili::node& singleCondition : condition)
                     {
-                        inputCondition(this, action, condition);
+                        inputCondition(this, actionName, singleCondition);
                     }
                 }
-                this->getAction(action->getId()).addContext(context->getId());
-                alreadyInFile.push_back(action->getId());
+                this->getAction(actionName).addContext(contextName);
+                alreadyInFile.push_back(actionName);
             }
         }
         // Add Context keys in real time <REVISION>
@@ -126,7 +187,12 @@ namespace obe::Input
 
     void InputManager::clearContexts()
     {
+        for (InputAction* action : m_currentActions)
+        {
+            action->disable();
+        }
         m_currentActions.clear();
+        // m_monitors.clear();
     }
 
     InputManager& InputManager::addContext(const std::string& context)
@@ -138,8 +204,14 @@ namespace obe::Input
                 && !isActionCurrentlyInUse(action->getId()))
             {
                 Debug::Log->debug("<InputManager> Add Action '{0}' in Context '{1}'",
-                    action.get()->getId(), context);
-                m_currentActions.push_back(action);
+                    action->getId(), context);
+                m_currentActions.push_back(action.get());
+                std::vector<InputButtonMonitorPtr> monitors;
+                for (InputButton* button : action->getInvolvedButtons())
+                {
+                    monitors.push_back(this->monitor(*button));
+                }
+                action->enable(monitors);
             }
         }
         return *this;
@@ -151,28 +223,22 @@ namespace obe::Input
         // context
         m_currentActions.erase(
             std::remove_if(m_currentActions.begin(), m_currentActions.end(),
-                [&context](const auto& inputAction) -> bool {
-                    if (const auto& action = inputAction.lock())
+                [&context](auto& action) -> bool {
+                    const auto& contexts = action->getContexts();
+                    auto isActionInContext
+                        = std::find(contexts.begin(), contexts.end(), context)
+                        != contexts.end();
+                    if (isActionInContext)
                     {
-                        const auto& contexts = action->getContexts();
-                        auto isActionInContext
-                            = std::find(contexts.begin(), contexts.end(), context)
-                            != contexts.end();
-                        if (isActionInContext)
-                        {
-                            Debug::Log->debug("<InputManager> Remove Action '{0}' "
-                                              "from Context '{1}'",
-                                action->getId(), context);
-                            return true;
-                        }
-                        else
-                        {
-                            return false;
-                        }
+                        Debug::Log->debug("<InputManager> Remove Action '{0}' "
+                                          "from Context '{1}'",
+                            action->getId(), context);
+                        action->disable();
+                        return true;
                     }
                     else
                     {
-                        return true;
+                        return false;
                     }
                 }),
             m_currentActions.end());
@@ -189,16 +255,156 @@ namespace obe::Input
     {
         std::set<std::string> allContexts;
 
-        for (const auto& actionPtr : m_currentActions)
+        for (const auto& action : m_currentActions)
         {
-            if (auto action = actionPtr.lock())
+            for (const auto& context : action->getContexts())
             {
-                for (const auto& context : action->getContexts())
-                {
-                    allContexts.emplace(context);
-                }
+                allContexts.emplace(context);
             }
         }
         return std::vector<std::string>(allContexts.begin(), allContexts.end());
+    }
+
+    InputButton& InputManager::getInput(const std::string& keyId)
+    {
+        if (m_inputs.find(keyId) != m_inputs.end())
+            return *m_inputs[keyId].get();
+
+        throw Exceptions::UnknownInputButton(
+            keyId, this->getAllInputButtonNames(), EXC_INFO);
+    }
+
+    std::vector<InputButton*> InputManager::getInputs()
+    {
+        std::vector<InputButton*> inputs;
+        inputs.reserve(m_inputs.size());
+        for (auto& [_, input] : m_inputs)
+        {
+            inputs.push_back(input.get());
+        }
+        return inputs;
+    }
+
+    std::vector<InputButton*> InputManager::getInputs(InputType filter)
+    {
+        std::vector<InputButton*> inputs;
+        for (auto& keyIterator : m_inputs)
+        {
+            if (keyIterator.second->is(filter))
+            {
+                inputs.push_back(keyIterator.second.get());
+            }
+        }
+        return inputs;
+    }
+
+    std::vector<InputButton*> InputManager::getPressedInputs()
+    {
+        std::vector<InputButton*> allPressedButtons;
+        for (auto& keyIterator : m_inputs)
+        {
+            if (keyIterator.second->isPressed())
+            {
+                allPressedButtons.push_back(keyIterator.second.get());
+            }
+        }
+        return allPressedButtons;
+    }
+
+    InputButtonMonitorPtr InputManager::monitor(const std::string& name)
+    {
+        return this->monitor(this->getInput(name));
+    }
+
+    InputButtonMonitorPtr InputManager::monitor(InputButton& input)
+    {
+        for (auto& monitor : m_monitors)
+        {
+            if (const auto sharedMonitor = monitor.lock())
+            {
+                if (&sharedMonitor->getButton() == &input)
+                    return InputButtonMonitorPtr(sharedMonitor);
+            }
+        }
+        InputButtonMonitorPtr monitor = std::make_shared<InputButtonMonitor>(input);
+        m_monitors.push_back(monitor);
+        return std::move(monitor);
+    }
+
+    void InputManager::requireRefresh()
+    {
+        m_refresh = true;
+    }
+
+    bool isKeyAlreadyInCombination(InputCombination& combination, InputButton* button)
+    {
+        for (auto& [monitoredButton, _] : combination)
+        {
+            if (monitoredButton == button)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    InputCombination InputManager::makeCombination(const std::string& code)
+    {
+        InputCombination combination;
+        std::vector<std::string> elements = Utils::String::split(code, "+");
+        if (code != "NotAssociated")
+        {
+            for (std::string element : elements)
+            {
+                Utils::String::replaceInPlace(element, " ", "");
+                std::vector<std::string> stateAndButton
+                    = Utils::String::split(element, ":");
+                if (stateAndButton.size() == 1 || stateAndButton.size() == 2)
+                {
+                    if (stateAndButton.size() == 1)
+                    {
+                        stateAndButton.push_back(stateAndButton[0]);
+                        stateAndButton[0] = "Pressed";
+                    }
+
+                    std::vector<std::string> stateList
+                        = Utils::String::split(stateAndButton[0], ",");
+                    Types::FlagSet<InputButtonState> buttonStates;
+                    for (std::string& buttonState : stateList)
+                    {
+                        if (Utils::Vector::contains(
+                                buttonState, { "Idle", "Hold", "Pressed", "Released" }))
+                        {
+                            buttonStates |= stringToInputButtonState(buttonState);
+                        }
+                        else
+                        {
+                            throw Exceptions::InvalidInputButtonState(
+                                buttonState, EXC_INFO);
+                        }
+                    }
+                    const std::string keyId = stateAndButton[1];
+                    if (m_inputs.find(keyId) != m_inputs.end())
+                    {
+                        InputButton& button = this->getInput(keyId);
+
+                        if (!isKeyAlreadyInCombination(combination, &button))
+                        {
+                            combination.emplace_back(&button, buttonStates);
+                        }
+                        else
+                        {
+                            throw Exceptions::InputButtonAlreadyInCombination(
+                                button.getName(), EXC_INFO);
+                        }
+                    }
+                    else
+                    {
+                        throw Exceptions::UnknownInputButton(
+                            keyId, this->getAllInputButtonNames(), EXC_INFO);
+                    }
+                }
+            }
+        }
+        return combination;
     }
 } // namespace obe::Input

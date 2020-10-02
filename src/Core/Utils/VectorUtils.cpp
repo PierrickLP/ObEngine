@@ -1,8 +1,10 @@
 #include <Utils/VectorUtils.hpp>
+#include <string>
 
 namespace obe::Utils::Vector
 {
-    std::string join(std::vector<std::string>& vector, std::string sep, int start, int end)
+    std::string join(
+        std::vector<std::string>& vector, std::string sep, int start, int end)
     {
         std::string result;
         if (end >= vector.size())

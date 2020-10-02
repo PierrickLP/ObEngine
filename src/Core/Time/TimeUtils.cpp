@@ -4,17 +4,11 @@
 
 namespace obe::Time
 {
-    TimeUnit getTickSinceEpoch()
+    TimeUnit epoch()
     {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    }
-
-    TimeUnit getTickSinceEpochMicro()
-    {
-        return std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
+        return double(std::chrono::duration_cast<std::chrono::microseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+                          .count())
+            * microseconds;
     }
 } // namespace obe::Time

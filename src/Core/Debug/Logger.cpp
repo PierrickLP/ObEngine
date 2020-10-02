@@ -1,10 +1,9 @@
-#include <Config/Config.hpp>
 #include <Debug/Logger.hpp>
-#include <System/Loaders.hpp>
 #include <Utils/FileUtils.hpp>
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/dist_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <spdlog/sinks/wincolor_sink.h>
 #elif defined(__ANDROID__)
@@ -15,42 +14,52 @@
 
 namespace obe::Debug
 {
-    std::shared_ptr<spd::logger> Log;
+    std::shared_ptr<spdlog::logger> Log;
     void InitLogger()
     {
         Utils::File::deleteFile("debug.log");
         auto dist_sink = std::make_shared<spdlog::sinks::dist_sink_st>();
-#if defined(_WIN32) || defined(_WIN64)
-        const auto sink1 = std::make_shared<spdlog::sinks::wincolor_stdout_sink_mt>();
-#elif defined(__ANDROID__)
-        const auto sink1 = std::make_shared<spdlog::sinks::android_sink_mt>("obengineplayer");
-#else
-        auto sink1 = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
-#endif
-        const auto sink2 = std::make_shared<spdlog::sinks::basic_file_sink_st>("debug.log");
+
+        const auto sink1 = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
+        const auto sink2
+            = std::make_shared<spdlog::sinks::basic_file_sink_st>("debug.log");
 
         dist_sink->add_sink(sink1);
         dist_sink->add_sink(sink2);
         Log = std::make_shared<spdlog::logger>("Log", dist_sink);
-        Log->set_pattern("[%H:%M:%S.%e]<%l> : %v");
-        Log->set_level(spd::level::info);
-        Log->flush_on(spd::level::trace);
-        Log->info("Logger initialised");
+        Log->set_pattern("[%H:%M:%S.%e]<%^%l%$> : %v");
+        Log->set_level(spdlog::level::info);
+        Log->flush_on(spdlog::level::warn);
+        Log->info("Logger initialized");
     }
 
-    void InitLoggerLevel()
+    void trace(const std::string& content)
     {
-        const unsigned int logLevel = Config::Config.at("Debug").getDataNode("logLevel").get<int>();
-        const spdlog::level::level_enum lvle = static_cast<spdlog::level::level_enum>(logLevel);
-        if (Config::Config->contains("Debug") && Config::Config.at("Debug").contains("logLevel"))
-            Log->set_level(lvle);
-        Log->info("Log Level {}", logLevel);
+        Log->trace(content);
     }
 
-    void SetLoggerLevel(const spdlog::level::level_enum lvle)
+    void debug(const std::string& content)
     {
-        Config::Config.at("Debug").getDataNode("logLevel").set(static_cast<int>(lvle));
-        // System::Config.writeFile(); Waiting for MultipleViliParser
-        InitLoggerLevel();
+        Log->debug(content);
+    }
+
+    void info(const std::string& content)
+    {
+        Log->info(content);
+    }
+
+    void warn(const std::string& content)
+    {
+        Log->warn(content);
+    }
+
+    void error(const std::string& content)
+    {
+        Log->error(content);
+    }
+
+    void critical(const std::string& content)
+    {
+        Log->critical(content);
     }
 } // namespace obe::Debug

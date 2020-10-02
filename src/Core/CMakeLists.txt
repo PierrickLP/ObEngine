@@ -20,6 +20,7 @@ target_include_directories(ObEngineCore
         $<BUILD_INTERFACE:${ObEngine_BINARY_DIR}/include/Core>
 )
 
+target_link_libraries(ObEngineCore bezier)
 target_link_libraries(ObEngineCore elzip)
 target_link_libraries(ObEngineCore lua)
 target_link_libraries(ObEngineCore sfe)
@@ -27,7 +28,7 @@ target_link_libraries(ObEngineCore vili)
 target_link_libraries(ObEngineCore dynamicLinker)
 target_link_libraries(ObEngineCore spdlog)
 target_link_libraries(ObEngineCore fmt)
-target_link_libraries(ObEngineCore kaguya)
+target_link_libraries(ObEngineCore sol3)
 target_link_libraries(ObEngineCore sfml-graphics sfml-system sfml-network)
 target_link_libraries(ObEngineCore Soloud)
 
@@ -48,6 +49,12 @@ group_files(
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_EXTENSIONS OFF)
+
+if (MSVC)
+    if (NOT (MSVC_VERSION LESS 1920))
+        target_compile_options(ObEngineCore PRIVATE /permissive- /bigobj)
+    endif()
+endif()
 
 function (apply_git_variables)
     target_compile_definitions(${PROJECT_NAME} PUBLIC OBENGINE_GIT_BRANCH="${OBENGINE_GIT_BRANCH}")

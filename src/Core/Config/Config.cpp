@@ -1,22 +1,33 @@
 #include <Config/Config.hpp>
 #include <System/Path.hpp>
 
+#include <Config/Templates/Config.hpp>
 #include <Debug/Logger.hpp>
+
+#include <vili/parser/parser.hpp>
 
 namespace obe::Config
 {
-    vili::ViliParser Config;
-
-    void InitConfiguration()
+    ConfigurationManager Config;
+    ConfigurationManager::ConfigurationManager()
+        : vili::node(vili::object {})
     {
-        Config = vili::ViliParser();
-        std::reverse(System::Path::MountedPaths.begin(), System::Path::MountedPaths.end());
-        System::LoaderMultipleResult loadResult
-            = System::Path("Data/config.cfg.vili").loadAll(System::Loaders::dataLoader, Config);
-        for (const std::string path : loadResult.paths())
+    }
+    void ConfigurationManager::load()
+    {
+        // TODO: Do not modify MountedPaths directly
+        auto mountPoints = System::MountablePath::Paths();
+        std::reverse(mountPoints.begin(), mountPoints.end());
+        const auto loadResult
+            = System::Path(mountPoints).set("Data/config.cfg.vili").findAll();
+        for (const std::string path : loadResult)
         {
-            Debug::Log->info("Loaded config file from {}", path);
+            Debug::Log->info("Loading config file from {}", path);
+            vili::node conf
+                = vili::parser::from_file(path, Templates::getConfigTemplates());
+            std::cout << "Merging : " << conf.dump() << std::endl;
+            this->merge(conf);
+            std::cout << "Result : " << this->dump() << std::endl;
         }
-        std::reverse(System::Path::MountedPaths.begin(), System::Path::MountedPaths.end());
     }
 } // namespace obe::System

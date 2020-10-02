@@ -1,9 +1,13 @@
 #pragma once
 
-#include <vili/ViliParser.hpp>
+#include <vili/node.hpp>
 
 namespace obe::Config
 {
-    extern vili::ViliParser Config;
-    void InitConfiguration();
+    class ConfigurationManager : public vili::node
+    {
+    public:
+        ConfigurationManager();
+        void load();
+    };
 } // namespace obe::System

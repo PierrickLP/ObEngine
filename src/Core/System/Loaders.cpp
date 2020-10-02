@@ -1,5 +1,8 @@
+#include <Debug/Logger.hpp>
 #include <System/Loaders.hpp>
 #include <Utils/FileUtils.hpp>
+
+#include <vili/parser/parser.hpp>
 
 namespace obe::System
 {
@@ -61,14 +64,29 @@ namespace obe::System
 namespace obe::System::Loaders
 {
     // Loaders
-    Loader<sf::Texture> textureLoader(
-        [](sf::Texture& obj, const std::string& path) -> bool { return obj.loadFromFile(path); });
+    Loader<Graphics::Texture> textureLoader(
+        [](sf::Texture& obj, const std::string& path) -> bool {
+            return obj.loadFromFile(path);
+        });
 
-    Loader<vili::ViliParser> dataLoader(
-        [](vili::ViliParser& obj, const std::string& path) -> bool { return obj.parseFile(path); });
+    Loader<vili::node> dataLoader([](vili::node& obj, const std::string& path) -> bool {
+        try
+        {
+            vili::node data = vili::parser::from_file(path);
+            obj.merge(data);
+            return true;
+        }
+        catch (vili::exceptions::base_exception& e)
+        {
+            Debug::Log->error(e.what());
+            return false;
+        }
+    });
 
-    Loader<sf::Font> fontLoader(
-        [](sf::Font& obj, const std::string& path) -> bool { return obj.loadFromFile(path); });
+    Loader<Graphics::Font> fontLoader(
+        [](Graphics::Font& obj, const std::string& path) -> bool {
+            return obj.loadFromFile(path);
+        });
 
     Loader<std::vector<std::string>> dirPathLoader(
         [](std::vector<std::string>& obj, const std::string& path) -> bool {
@@ -97,7 +115,4 @@ namespace obe::System::Loaders
                 return false;
             }
         });
-
-    Loader<kaguya::State> luaLoader(
-        [](kaguya::State& obj, const std::string& path) -> bool { return obj.dofile(path); });
 } // namespace obe::System::Loaders

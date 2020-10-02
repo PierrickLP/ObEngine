@@ -6,8 +6,7 @@ namespace obe::Types
 {
     /**
      * \brief A Base class that does carry an unique identifier for a given
-     * category (Sprites / Colliders etc..)
-     * @Bind
+     *        category (Sprites / Colliders etc..)
      */
     class Identifiable
     {
@@ -30,19 +29,27 @@ namespace obe::Types
          * \brief Get the id of the Identifiable
          * \return A std::string containing the id of the Identifiable
          */
-        std::string getId() const;
+        [[nodiscard]] std::string getId() const;
     };
 
     /**
+     * \forceabstract
      * \brief Exactly like Identifiable class except you can't change the Id
-     * after creation
+     *        after creation
      */
-    class ProtectedIdentifiable : protected Identifiable
+    class ProtectedIdentifiable : public Identifiable
     {
-    protected:
-        using Identifiable::Identifiable;
+    private:
+        using Identifiable::setId;
 
     public:
+        /**
+         * \nobind
+         */
         using Identifiable::getId;
+        /**
+         * \nobind
+         */
+        using Identifiable::Identifiable;
     };
 } // namespace obe::Types

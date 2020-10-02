@@ -6,18 +6,20 @@ project(ObEngine)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 include(engine_git)
 
+add_subdirectory(extlibs/bezier)
 add_subdirectory(extlibs/catch)
 add_subdirectory(extlibs/dynamicLinker)
-add_subdirectory(extlibs/vili)
 add_subdirectory(extlibs/fswrapper)
 
 # fmtlib is required by spdlog
 add_subdirectory(extlibs/fmt)
 add_subdirectory(extlibs/spdlog)
 
-# lua is required by kaguya
+add_subdirectory(extlibs/vili)
+
+# lua is required by sol
 add_subdirectory(extlibs/lua)
-add_subdirectory(extlibs/kaguya)
+add_subdirectory(extlibs/sol3)
 
 # Audio library
 add_subdirectory(extlibs/soloud)
@@ -62,12 +64,6 @@ endif()
 
 if (NOT DEFINED BUILD_DEV)
     set(BUILD_DEV ON CACHE BOOL "Build ObEngine Dev ?")
-endif()
-
-if (BUILD_DEV)
-    add_subdirectory(extlibs/TGUI)
-    add_subdirectory(src/Dev)
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ObEngineDev)
 endif()
 
 if (NOT DEFINED BUILD_TESTS)

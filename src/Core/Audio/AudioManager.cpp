@@ -1,4 +1,5 @@
 #include <Audio/AudioManager.hpp>
+#include <Audio/Exceptions.hpp>
 #include <Audio/Sound.hpp>
 #include <Debug/Logger.hpp>
 #include <System/Path.hpp>
@@ -10,27 +11,32 @@
 namespace obe::Audio
 {
     AudioManager::AudioManager()
-        : Registrable("Audio")
     {
+        Debug::Log->debug("<AudioManager> Initializing AudioManager");
         m_engine.init();
     }
     AudioManager::~AudioManager()
     {
+        Debug::Log->debug("<AudioManager> Cleaning AudioManager");
         m_engine.deinit();
     }
-    void AudioManager::cache(const std::string& path)
+
+    Sound AudioManager::load(const System::Path& path, LoadPolicy loadPolicy)
     {
-        if (m_cache.find(path) == m_cache.end())
+        const std::string filePath = path.find(System::PathType::File);
+        Debug::Log->debug("<AudioManager> Loading Audio at '{}'", filePath);
+        if (filePath.empty())
         {
-            std::string filePath = System::Path(path).find(System::PathType::File);
+            throw Exceptions::AudioFileNotFound(
+                path.toString(), System::MountablePath::StringPaths(), EXC_INFO);
+        }
+
+        if (loadPolicy == LoadPolicy::Cache && m_cache.find(filePath) == m_cache.end())
+        {
             std::shared_ptr<SoLoud::Wav> sample = std::make_shared<SoLoud::Wav>();
             sample->load(filePath.c_str());
             m_cache[filePath] = sample;
         }
-    }
-    Sound AudioManager::load(const std::string& path, bool stream)
-    {
-        std::string filePath = System::Path(path).find(System::PathType::File);
         std::shared_ptr<SoLoud::AudioSource> sample;
         if (m_cache.find(filePath) != m_cache.end())
         {
@@ -38,15 +44,15 @@ namespace obe::Audio
         }
         else
         {
-            if (stream)
+            if (loadPolicy == LoadPolicy::Stream)
             {
                 sample = std::make_shared<SoLoud::WavStream>();
-                static_cast<SoLoud::WavStream*>(sample.get())->load(filePath.c_str());
+                dynamic_cast<SoLoud::WavStream*>(sample.get())->load(filePath.c_str());
             }
             else
             {
                 sample = std::make_shared<SoLoud::Wav>();
-                static_cast<SoLoud::Wav*>(sample.get())->load(filePath.c_str());
+                dynamic_cast<SoLoud::Wav*>(sample.get())->load(filePath.c_str());
             }
         }
         return Sound(m_engine, std::move(sample));

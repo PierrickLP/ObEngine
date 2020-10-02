@@ -4,12 +4,15 @@ namespace obe::Types
 {
     /**
      * \brief A Base Class that you can enable or disable
-     * @Bind
      */
     class Togglable
     {
+    private:
+        void changeState(bool state);
+
     protected:
         bool m_enabled;
+        virtual void onStateChange();
 
     public:
         /**
@@ -39,6 +42,6 @@ namespace obe::Types
          * \brief Get if the Togglable is enabled or not
          * \return true if enabled, false otherwise
          */
-        bool isEnabled() const;
+        [[nodiscard]] bool isEnabled() const;
     };
 } // namespace obe::Types

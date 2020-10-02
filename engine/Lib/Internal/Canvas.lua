@@ -1,6 +1,8 @@
 local Class = require("Lib/StdLib/Class");
 local contains = require("Lib/StdLib/Contains");
 
+obe.Canvas = {};
+
 function deepcopy(orig)
     local orig_type = type(orig)
     local copy
@@ -17,20 +19,22 @@ function deepcopy(orig)
 end
 
 obe.Canvas.Canvas = Class("Canvas", function(self, width, height, usecache)
-    self.internal = obe.Canvas.InternalCanvas(width, height);
+    self.internal = obe.Graphics.Canvas.Canvas(math.floor(width), math.floor(height));
     self.elements = {};
     self.useCache = usecache or false;
     self.BMT = {
         Line = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Line}, self.useCache),
         Rectangle = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Shape, obe.Canvas.Bases.Rectangle}, self.useCache),
         Text = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Shape, obe.Canvas.Bases.Text}, self.useCache),
-        Circle = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Shape, obe.Canvas.Bases.Circle}, self.useCache)
+        Circle = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Shape, obe.Canvas.Bases.Circle}, self.useCache),
+        Polygon = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Shape, obe.Canvas.Bases.Polygon}, self.useCache),
+        Bezier = obe.Canvas.MakeMT({obe.Canvas.Bases.Drawable, obe.Canvas.Bases.Bezier}, self.useCache)
     };
 end);
 
 function obe.Canvas.NormalizeColor(color, base)
     if type(color) == "table" then
-        local ncolor = SFML.Color();
+        local ncolor = obe.Graphics.Color();
         base = base or { r = 0, g = 0, b = 0, a = 255 };
         ncolor.r = math.floor(color.r or base.r);
         ncolor.g = math.floor(color.g or base.g);
@@ -40,43 +44,42 @@ function obe.Canvas.NormalizeColor(color, base)
     elseif type(color) == "number" then
         local dalpha = base.a;
         color = math.floor(color);
-        return SFML.Color(color, color, color, dalpha);
+        return obe.Graphics.Color(color, color, color, dalpha);
     elseif type(color) == "string" then
-        color = color:gsub("#","");
-        if string.len(color) == 3 then
-            return SFML.Color(tonumber("0x"..color:sub(1,1)) * 17, tonumber("0x"..color:sub(2,2)) * 17, tonumber("0x"..color:sub(3,3)) * 17);
-        elseif string.len(color) == 6 then
-            return SFML.Color(tonumber("0x"..color:sub(1,2)), tonumber("0x"..color:sub(3,4)), tonumber("0x"..color:sub(5,6)));
-        end
+        local newColor = obe.Graphics.Color();
+        newColor:fromString(color);
+        return newColor;
+    elseif type(color) == "userdata" then
+        return color;
     end
 end
 
 function obe.Canvas.ConvertHAlign(align)
     if type(align) == "string" then
-        if align == "Left" then return obe.Canvas.Alignment.Horizontal.Left;
-        elseif align == "Center" then return obe.Canvas.Alignment.Horizontal.Center;
-        elseif align == "Right" then return obe.Canvas.Alignment.Horizontal.Right;
+        if align == "Left" then return obe.Graphics.Canvas.TextHorizontalAlign.Left;
+        elseif align == "Center" then return obe.Graphics.Canvas.TextHorizontalAlign.Center;
+        elseif align == "Right" then return obe.Graphics.Canvas.TextHorizontalAlign.Right;
         else error("Horizontal Alignment", align, "does not exists, use one of those [Left, Center, Right]")
         end
     else
-        if align == obe.Canvas.Alignment.Horizontal.Left then return "Left";
-        elseif align == obe.Canvas.Alignment.Horizontal.Center then return "Center";
-        elseif align == obe.Canvas.Alignment.Horizontal.Right then return "Right";
+        if align == obe.Graphics.Canvas.TextHorizontalAlign.Left then return "Left";
+        elseif align == obe.Graphics.Canvas.TextHorizontalAlign.Center then return "Center";
+        elseif align == obe.Graphics.Canvas.TextHorizontalAlign.Right then return "Right";
         end
     end
 end
 
 function obe.Canvas.ConvertVAlign(align)
     if type(align) == "string" then
-        if align == "Top" then return obe.Canvas.Alignment.Vertical.Top;
-        elseif align == "Center" then return obe.Canvas.Alignment.Vertical.Center;
-        elseif align == "Bottom" then return obe.Canvas.Alignment.Vertical.Bottom;
+        if align == "Top" then return obe.Graphics.Canvas.TextVerticalAlign.Top;
+        elseif align == "Center" then return obe.Graphics.Canvas.TextVerticalAlign.Center;
+        elseif align == "Bottom" then return obe.Graphics.Canvas.TextVerticalAlign.Bottom;
         else error("Vertical Alignment", align, "does not exists, use one of those [Top, Center, Botton]")
         end
     else
-        if align == obe.Canvas.Alignment.Vertical.Top then return "Top";
-        elseif align == obe.Canvas.Alignment.Vertical.Center then return "Center";
-        elseif align == obe.Canvas.Alignment.Vertical.Bottom then return "Bottom";
+        if align == obe.Graphics.Canvas.TextVerticalAlign.Top then return "Top";
+        elseif align == obe.Graphics.Canvas.TextVerticalAlign.Center then return "Center";
+        elseif align == obe.Graphics.Canvas.TextVerticalAlign.Bottom then return "Bottom";
         end
     end
 end
@@ -247,16 +250,11 @@ function obe.Canvas.InjectInternalMT(tbl, ref)
     end
 end
 
-local UV2V2f = function(uv)
-    local uvpx = uv:to(obe.Units.ScenePixels);
-    return SFML.Vector2f(uvpx.x, uvpx.y);
-end
-
 obe.Canvas.Bases.Drawable = {
   getters = {
       layer = function(self) return self.layer; end,
       visible = function(self) return self.visible; end,
-      id = function(self) return self.id; end
+      id = function(self) return self:getId(); end
   },
   setters = {
       layer = function(self, layer) self:setLayer(layer or 1); end,
@@ -293,7 +291,7 @@ obe.Canvas.Bases.Line = {
                 x = function(self, x) self.p1.x = x or 0; end,
                 y = function(self, y) self.p1.y = y or 0; end,
                 unit = function(self, unit)
-                    self.p1.unit = unit or obe.Units.ScenePixels;
+                    self.p1.unit = unit or obe.Transform.Units.ScenePixels;
                 end,
                 color = function(self, color)
                     self.p1color = obe.Canvas.NormalizeColor(color, self.p1color);
@@ -327,7 +325,7 @@ obe.Canvas.Bases.Line = {
                 x = function(self, x) self.p2.x = x or 0; end,
                 y = function(self, y) self.p2.y = y or 0; end,
                 unit = function(self, unit)
-                    self.p2.unit = unit or obe.Units.ScenePixels;
+                    self.p2.unit = unit or obe.Transform.Units.ScenePixels;
                 end,
                 color = function(self, color)
                     self.p2color = obe.Canvas.NormalizeColor(color, self.p2color);
@@ -353,8 +351,8 @@ obe.Canvas.Bases.Line = {
     },
     setters = {
         unit = function(self, unit)
-            self.p1.unit = unit or obe.Units.ScenePixels;
-            self.p2.unit = unit or obe.Units.ScenePixels;
+            self.p1.unit = unit or obe.Transform.Units.ScenePixels;
+            self.p2.unit = unit or obe.Transform.Units.ScenePixels;
         end,
         thickness = function(self, thickness) self.thickness = thickness or 1; end,
         color = function(self, color)
@@ -366,7 +364,7 @@ obe.Canvas.Bases.Line = {
                 if type(p1.x) == "number" then self.p1.x = p1.x; end
                 if type(p1.y) == "number" then self.p1.y = p1.y; end
                 if p1.color then self.p1color = obe.Canvas.NormalizeColor(p1.color, self.p1color); end
-                if p1.unit then self.p1.unit = p1.unit or obe.Units.ScenePixels; end
+                if p1.unit then self.p1.unit = p1.unit or obe.Transform.Units.ScenePixels; end
             end
         end,
         p2 = function(self, p2)
@@ -374,7 +372,7 @@ obe.Canvas.Bases.Line = {
                 if type(p2.x) == "number" then self.p2.x = p2.x; end
                 if type(p2.y) == "number" then self.p2.y = p2.y; end
                 if p2.color then self.p2color = obe.Canvas.NormalizeColor(p2.color, self.p2color); end
-                if p2.unit then self.p2.unit = p2.unit or obe.Units.ScenePixels; end
+                if p2.unit then self.p2.unit = p2.unit or obe.Transform.Units.ScenePixels; end
             end
         end
     }
@@ -456,22 +454,22 @@ obe.Canvas.Bases.Shape = {
             setters = {
                 r = function(self, r)
                     local colorBuffer = self.shape:getFillColor();
-                    colorBuffer.r = math.floor(r) or 0;
+                    colorBuffer.r = r or 0;
                     self.shape:setFillColor(colorBuffer);
                 end,
                 g = function(self, g)
                     local colorBuffer = self.shape:getFillColor();
-                    colorBuffer.g = math.floor(g) or 0;
+                    colorBuffer.g = g or 0;
                     self.shape:setFillColor(colorBuffer);
                 end,
                 b = function(self, b)
                     local colorBuffer = self.shape:getFillColor();
-                    colorBuffer.b = math.floor(b) or 0;
+                    colorBuffer.b = b or 0;
                     self.shape:setFillColor(colorBuffer);
                 end,
                 a = function(self, a)
                     local colorBuffer = self.shape:getFillColor();
-                    colorBuffer.a = math.floor(a) or 255;
+                    colorBuffer.a = a or 255;;
                     self.shape:setFillColor(colorBuffer);
                 end
             }
@@ -493,14 +491,14 @@ obe.Canvas.Bases.Shape = {
         end,
         x = function(self, x)
             self.position.x = x;
-            self.shape:setPosition(UV2V2f(self.position));
+            self.shape:setPosition(self.position);
         end,
         y = function(self, y)
             self.position.y = y;
-            self.shape:setPosition(UV2V2f(self.position));
+            self.shape:setPosition(self.position);
         end,
         unit = function(self, unit)
-            self.position.unit = unit or obe.Units.ScenePixels;
+            self.position.unit = unit or obe.Transform.Units.ScenePixels;
         end,
         angle = function(self, angle)
             self.shape:setRotation(angle or 0);
@@ -511,6 +509,9 @@ obe.Canvas.Bases.Shape = {
             elseif type(scale) == "table" then
                 self.shape:setScale(scale.x or 1, scale.y or 1);
             end
+        end,
+        texture = function(self, texture)
+            self.shape:setTexture(Engine.Resources:getTexture(texture));
         end
     }
 }
@@ -526,15 +527,15 @@ obe.Canvas.Bases.Rectangle = {
     setters = {
         width = function(self, width)
             self.size.x = width;
-            self.shape:setSize(UV2V2f(self.size));
+            self.shape:setSize(self.size);
         end,
         height = function(self, height)
             self.size.y = height
-            self.shape:setSize(UV2V2f(self.size));
+            self.shape:setSize(self.size);
         end,
         unit = function(self, unit)
-            self.position.unit = unit or obe.Units.ScenePixels;
-            self.size.unit = unit or obe.Units.ScenePixels;
+            self.position.unit = unit or obe.Transform.Units.ScenePixels;
+            self.size.unit = unit or obe.Transform.Units.ScenePixels;
         end,
     }
 }
@@ -550,13 +551,71 @@ obe.Canvas.Bases.Circle = {
     }
 }
 
+function positionToUnitVector(position)
+    if type(position) == "table" then
+        local x = position.x or position[1];
+        local y = position.x or position[2];
+        local unit = position.unit or position[3] or obe.Transform.Units.ScenePixels;
+        position = obe.Transform.UnitVector(x, y, unit);
+    end
+    return position;
+end
 obe.Canvas.Bases.Polygon = {
     getters = {
-
+        points = {
+            getters = {
+                __number = function(self, index)
+                    return self.shape:getPointPosition(index);
+                end
+            },
+            setters = {
+                __number = function(self, index, position)
+                    position = positionToUnitVector(position);
+                    self.shape:setPointPosition(index - 1, position);
+                end
+            }
+        }
     },
     setters = {
-        __number = function(self, index, vertex)
-            local i = index - 1;
+        points = function(self, points)
+            for k, v in pairs(points) do
+                local position = positionToUnitVector(v);
+                self.shape:setPointPosition(k - 1, position);
+            end
+        end
+    }
+}
+
+obe.Canvas.Bases.Bezier = {
+    getters = {
+        points = {
+            getters = {
+                __number = function(self, index)
+                    return self.points[index];
+                end
+            },
+            setters = {
+                __number = function(self, index, position)
+                    self.points[index - 1] = positionToUnitVector(position);
+                end
+            }
+        },
+        precision = function(self)
+            return self.precision;
+        end
+    },
+    setters = {
+        points = function(self, points)
+            for k, v in pairs(points) do
+                local color = v.color or self.colors[k - 1] or obe.Graphics.Color(255, 255, 255);
+                color = obe.Canvas.NormalizeColor(color);
+                table.insert(self.points, positionToUnitVector(v));
+                table.insert(self.colors, color);
+                -- self.points[k - 1] = positionToUnitVector(v);
+            end
+        end,
+        precision = function(self, precision)
+            self.precision = precision;
         end
     }
 }
@@ -577,19 +636,13 @@ end
 
 obe.Canvas.Bases.Text = {
     priority = {
-        "font", "size", "color", "outline"
+        "font", "size", "color", "outline", "align"
     },
     getters = {
         text = function(self)
             local fullText = "";
-            for _, line in pairs(self.shape:getLines()) do
-                for _, text in pairs(line:getTexts()) do
-                    fullText = fullText .. text:getString():toAnsiString();
-                end
-                fullText = fullText .. "\n";
-            end
-            if fullText ~= "" then
-                fullText = fullText:sub(1, -2);
+            for _, text in pairs(self.texts) do
+                fullText = fullText .. text.string;
             end
             return fullText;
         end,
@@ -618,64 +671,63 @@ obe.Canvas.Bases.Text = {
                 v = function(self, v) self.v_align = obe.Canvas.ConvertVAlign(v); end,
                 vertical = function(self, v) self.v_align = obe.Canvas.ConvertVAlign(v); end
             }
+        },
+        color = {
+            getters = {
+                r = function(self) return self.text.color.r; end,
+                g = function(self) return self.text.color.g; end,
+                b = function(self) return self.text.color.b; end,
+                a = function(self) return self.text.color.a; end
+            },
+            setters = {
+                r = function(self, r)
+                    self.text.color.r = r;
+                    self:refresh();
+                end,
+                g = function(self, g)
+                    self.text.color.g = g;
+                    self:refresh();
+                end,
+                b = function(self, b)
+                    self.text.color.b = b;
+                    self:refresh();
+                end,
+                a = function(self, a)
+                    self.text.color.a = a;
+                    self:refresh();
+                end
+            }
         }
     },
     setters = {
         text = function(self, text)
-            self.shape:clear();
-            -- Apply style
             if self.fontPath == "" then
                 error("@Canvas.Text.setters.text : Need to set @font before @text");
             end
-            self.shape:pushString(SFML.WString(text));
+            self.text.string = text;
+            self:refresh();
         end,
         size = function(self, size)
             self.shape:setCharacterSize(size);
         end,
         font = function(self, font)
             self.fontPath = font;
-            self.shape:setFont(ResourceManager:getFont(font));
+            self.shape:setFont(Engine.Resources:getFont(font));
         end,
         color = function(self, color)
-            self.shape:clear();
-            self.shape:pushFillColor(obe.Canvas.NormalizeColor(color));
-            self.shape:pushString(SFML.String(GetRichTextString(self.shape)));
+            self.text.color = obe.Canvas.NormalizeColor(color);
+            self:refresh();
         end,
         outline = function(self, outline)
             if type(outline) == "table" then
                 if outline.color then
-                    self.shape:clear();
-                    self.shape:pushOutlineColor(obe.Canvas.NormalizeColor(outline.color));
-                    self.shape:pushString(SFML.String(GetRichTextString(self.shape)));
+                    self.text.outline = obe.Canvas.NormalizeColor(outline.color);
+                    self:refresh();
                 end
                 if type(outline.thickness) == "number" then
-                    self.shape:clear();
-                    self.shape:pushOutlineThickness(outline.thickness);
-                    self.shape:pushString(SFML.String(GetRichTextString(self.shape)));
+                    self.text.thickness = outline.thickness;
+                    self:refresh();
                 end
-            end
-        end,
-        __number = function(self, index, part)
-            self.shape:pushOutlineThickness(0);
-            self.shape:pushOutlineColor(SFML.Color(255, 255, 255));
-            self.shape:pushFillColor(SFML.Color(255, 255, 255));
-            self.shape:pushStyle(SFML.Style.Regular);
-            if part.color then
-                self.shape:pushFillColor(obe.Canvas.NormalizeColor(part.color));
-            end
-            if part.style then
-                self.shape:pushStyle(part.style);
-            end
-            if part.outline then
-                if part.outline.thickness then
-                    self.shape:pushOutlineThickness(part.outline.thickness);
-                end
-                if part.outline.color then
-                    self.shape:pushOutlineColor(obe.Canvas.NormalizeColor(part.outline.color));
-                end
-            end
-            if part.text then
-                self.shape:pushString(SFML.String(part.text));
             end
         end,
         align = function(self, al)
@@ -715,7 +767,7 @@ end
 function obe.Canvas.Canvas:Text(id)
     id = self:GenerateId(id);
     self.elements[id] = self:InstanciateMT("Text", self.internal:Text(id));
-    self.elements[id].font = "Data/Fonts/arial.ttf";
+    self.elements[id].font = "Data/Fonts/NotoSans.ttf";
     return self.elements[id];
 end
 
@@ -725,23 +777,31 @@ function obe.Canvas.Canvas:Circle(id)
     return self.elements[id];
 end
 
+function obe.Canvas.Canvas:Polygon(id)
+    id = self:GenerateId(id);
+    self.elements[id] = self:InstanciateMT("Polygon", self.internal:Polygon(id));
+    return self.elements[id];
+end
+
+function obe.Canvas.Canvas:Bezier(id)
+    id = self:GenerateId(id);
+    self.elements[id] = self:InstanciateMT("Bezier", self.internal:Bezier(id));
+    return self.elements[id];
+end
+
 function obe.Canvas.Canvas:Sprite(id)
     id = self:GenerateId(id);
     self.elements[id] = { __ref = self.internal:Sprite(id); };
     return self.elements[id];
 end
 
-function obe.Canvas.Canvas:render()
+function obe.Canvas.Canvas:render(target)
     if self.useCache then
         for id, element in pairs(self.elements) do
             obe.Canvas.ApplyCache(element);
         end
     end
-    self.internal:render();
-end
-
-function obe.Canvas.Canvas:setTarget(target)
-    self.internal:setTarget(target);
+    self.internal:render(target);
 end
 
 function obe.Canvas.Canvas:clear()

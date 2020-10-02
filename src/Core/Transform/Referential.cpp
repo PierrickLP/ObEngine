@@ -1,10 +1,12 @@
+#include <Transform/Exceptions.hpp>
 #include <Transform/Referential.hpp>
 
 #include <array>
+#include <cassert>
+#include <ostream> // Weird fix on latest versions of MSVC
 #include <regex>
 
 #include <fmt/format.h>
-#include <vili/ErrorHandler.hpp>
 
 namespace obe::Transform
 {
@@ -17,9 +19,10 @@ namespace obe::Transform
     Referential Referential::BottomLeft = Referential(0, 1);
     Referential Referential::Bottom = Referential(0.5, 1);
     Referential Referential::BottomRight = Referential(1, 1);
-    std::array<Referential, 9> Referential::Referentials = { Referential::TopLeft, Referential::Top,
-        Referential::TopRight, Referential::Left, Referential::Center, Referential::Right,
-        Referential::BottomLeft, Referential::Bottom, Referential::BottomRight };
+    std::array<Referential, 9> Referential::Referentials
+        = { Referential::TopLeft, Referential::Top, Referential::TopRight,
+              Referential::Left, Referential::Center, Referential::Right,
+              Referential::BottomLeft, Referential::Bottom, Referential::BottomRight };
 
     Referential::Referential()
         : m_refX(0)
@@ -34,6 +37,13 @@ namespace obe::Transform
         assert(refX >= -1 && refX <= 1);
         assert(refY >= -1 && refY <= 1);
     }
+
+    Referential::Referential(const Referential& ref)
+    {
+        m_refX = ref.m_refX;
+        m_refY = ref.m_refY;
+    }
+
     bool Referential::operator==(const Referential& ref) const
     {
         return (getOffset() == ref.getOffset());
@@ -43,12 +53,12 @@ namespace obe::Transform
         return !((*this) == ref);
     }
 
-    Referential Referential::flip(Referential::Axis axis) const
+    Referential Referential::flip(FlipAxis axis) const
     {
         const bool bothOrHorizontal
-            = (axis == Referential::Axis::Both || axis == Referential::Axis::Horizontal);
+            = (axis == FlipAxis::Both || axis == FlipAxis::Horizontal);
         const bool bothOrVertical
-            = (axis == Referential::Axis::Both || axis == Referential::Axis::Vertical);
+            = (axis == FlipAxis::Both || axis == FlipAxis::Vertical);
         return Referential(
             bothOrHorizontal ? 1 - m_refX : m_refX, bothOrVertical ? 1 - m_refY : m_refY);
     }
@@ -115,7 +125,8 @@ namespace obe::Transform
         if (m_refX == 1 && m_refY == 1)
             return fmt::format(format, "BottomRight");
         else
-            return fmt::format(format, fmt::format("{}, {}", m_refX, m_refY), m_refX, m_refY);
+            return fmt::format(
+                format, fmt::format("{}, {}", m_refX, m_refY), m_refX, m_refY);
     }
 
     Referential Referential::FromString(const std::string& ref)
@@ -146,8 +157,7 @@ namespace obe::Transform
         {
             return Referential(std::stod(regMatch[1]), std::stod(regMatch[3]));
         }
-        throw aube::ErrorHandler::Raise(
-            "ObEngine.Transform.Referential.UnknownReferential", { { "referential", ref } });
+        throw Exceptions::UnknownReferential(ref, EXC_INFO);
     }
 
     std::ostream& operator<<(std::ostream& os, Referential m)
